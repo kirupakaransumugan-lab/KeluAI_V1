@@ -1,0 +1,15 @@
+# Local dev: Qdrant vector DB for the RAG tutor. Data persists in ../var/qdrant.
+#   docker compose --env-file backend/.env -f infra/docker-compose.yml up -d     (run from the repo root)
+# REST + dashboard: http://localhost:6333/dashboard   gRPC: 6334
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ../var/qdrant:/qdrant/storage
+    environment:
+      # Same value the backend sends; no default on purpose, set it in backend/.env yourself.
+      QDRANT__SERVICE__API_KEY: ${VECTOR_DB_API_KEY:?set VECTOR_DB_API_KEY in backend/.env}
+    restart: unless-stopped

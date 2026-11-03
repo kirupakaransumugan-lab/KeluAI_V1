@@ -1,0 +1,16 @@
+# Secrets: never commit real env files (the *.example files are fine)
+.env
+.env.*
+!.env.example
+
+# Local data: Qdrant storage, OCR page cache
+var/
+backend/var/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Frontend
+node_modules/
