@@ -80,3 +80,61 @@ export const authApi = {
   me: () => request<User>("GET", "/auth/me"),
   logout: () => request<void>("POST", "/auth/logout"),
 };
+
+export type TutorMode = "practice" | "exam" | "review" | "free";
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** A past-paper passage the reply cites as [S1], [S2]... */
+export interface TutorSource {
+  label: string;
+  title: string;
+  upload_type: string;
+  exam_year: number | null;
+  page: number | null;
+  paper: string | null;
+  paper_part: string | null;
+  question_number: string | null;
+}
+
+export interface TutorReply {
+  content: string;
+  sources: TutorSource[];
+  truncated: boolean;
+  hint_level: number;
+}
+
+export interface QuizStepOption {
+  text: string;      // the working, in LaTeX
+  why: string;       // why it's the right move, or the mistake in it
+  correct: boolean;
+}
+
+export interface QuizStep {
+  title: string;
+  options: QuizStepOption[];   // RIGHT first from the API; the UI shuffles
+}
+
+/** An AI-written practice question in past-paper style (backend app/rag/quiz.py). */
+export interface QuizQuestion {
+  number: number;
+  topic: string;
+  question: string;
+  answer: string;
+  modelled_on: Partial<TutorSource>;
+  steps: QuizStep[];           // may be empty: the UI falls back to "Show answer"
+}
+
+export interface QuizResult {
+  questions: QuizQuestion[];
+  dropped: number;
+}
+
+export const tutorApi = {
+  chat: (history: ChatTurn[], lang: Medium, hint_level: number, mode: TutorMode = "practice") =>
+    request<TutorReply>("POST", "/tutor/chat", { history, lang, hint_level, mode }),
+  quiz: (lang: Medium, count = 10) => request<QuizResult>("POST", "/tutor/quiz", { lang, count }),
+};

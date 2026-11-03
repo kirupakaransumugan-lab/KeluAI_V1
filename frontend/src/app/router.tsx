@@ -6,10 +6,15 @@ import { PricingPage } from "../pages/PricingPage";
 import { SignupPage } from "../pages/SignupPage";
 import { LoginPage } from "../pages/LoginPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { DashboardLayout } from "../layouts/DashboardLayout";
+import { ComingSoon, DashboardHome } from "../features/dashboard/DashboardHome";
+import { TutorPage } from "../features/ai-tutor/TutorPage";
+import { PracticePage } from "../features/practice/PracticePage";
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    // Opt in to React Router v7 behaviour now (silences the future-flag console warnings).
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
@@ -18,6 +23,13 @@ export function AppRouter() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        {/* Signed-in app: the layout sends anyone not logged in to /login. */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<DashboardHome />} />
+          <Route path="tutor" element={<TutorPage />} />
+          <Route path="practice" element={<PracticePage />} />
+          <Route path="*" element={<ComingSoon />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

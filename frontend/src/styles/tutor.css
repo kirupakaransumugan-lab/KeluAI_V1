@@ -1,0 +1,264 @@
+/* =====================================================================
+   AI tutor chat. Classes are prefixed tu- (mt- for the maths renderer).
+   The page is exactly the window height minus the 70px top bar, so the
+   page itself never scrolls; only the thread and the chat list do.
+   ===================================================================== */
+.tu-page {
+  height: calc(100vh - 70px); height: calc(100dvh - 70px);
+  display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 18px;
+  padding: 0 var(--db-pad) 14px 0;
+}
+.db-autohide .tu-page { padding-left: var(--db-pad); }   /* app sidebar is tucked away */
+@media (max-width: 1280px) {
+  .tu-page { grid-template-columns: 280px minmax(0, 1fr); gap: 14px; }
+  .tu-chat time { display: none; }
+}
+
+/* ---------- Conversations ---------- */
+.tu-chats {
+  display: flex; flex-direction: column; min-height: 0; gap: 14px;
+  padding: 18px 16px 16px; border-radius: var(--db-radius);
+  background: rgba(255, 255, 255, 0.72); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: var(--db-shadow);
+}
+.tu-new {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px;
+  border: 0; border-radius: 16px; background: var(--plum); color: #fff; font-size: 17px; font-weight: 600;
+  box-shadow: 0 8px 20px rgba(140, 29, 107, 0.22);
+}
+.tu-new:hover { background: var(--plum-dark); }
+.tu-search {
+  display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 14px;
+  border-radius: 12px; border: 1px solid #ebe0e5; background: #fff; color: var(--muted);
+}
+.tu-search svg { width: 19px; height: 19px; flex: none; }
+.tu-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.tu-search input:focus { outline: none; }
+.tu-search:focus-within { border-color: #e7b8d3; box-shadow: 0 0 0 4px rgba(140, 29, 107, 0.08); }
+
+.tu-chat-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+.tu-chat-list h3 { margin: 12px 4px 6px; font-size: 15.5px; font-weight: 700; }
+.tu-chat-empty { margin: 16px 4px; color: var(--muted); font-size: 14.5px; }
+.tu-chat {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 11px 12px;
+  border: 0; border-left: 3px solid transparent; border-radius: 12px; background: transparent;
+  text-align: left; color: var(--ink);
+}
+.tu-chat:hover { background: rgba(140, 29, 107, 0.05); }
+.tu-chat.active { background: #fbe6f0; border-left-color: var(--plum); }
+.tu-chat-icon {
+  display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px;
+  background: #fff; color: var(--plum); box-shadow: 0 2px 8px rgba(140, 29, 107, 0.08);
+}
+.tu-chat-copy { flex: 1; min-width: 0; }
+.tu-chat-copy strong { display: block; font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tu-chat-copy span { display: block; margin-top: 2px; color: var(--muted); font-size: 13.5px; }
+.tu-chat time { flex: none; color: var(--muted); font-size: 13px; padding-top: 2px; }
+
+.tu-banner { flex: none; border-top: 1px solid var(--db-line); padding-top: 12px; }
+.tu-banner img { display: block; width: 100%; height: auto; }
+
+/* ---------- Conversation ---------- */
+.tu-conv {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  border-radius: var(--db-radius); background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.95); box-shadow: var(--db-shadow);
+}
+.tu-head { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--db-line); }
+.tu-head-icon { display: none; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 10px; background: #fbe6f0; color: var(--plum); }
+.tu-head-copy { flex: 1; min-width: 0; }
+.tu-head-title { display: flex; align-items: center; gap: 10px; }
+.tu-head h1 {
+  margin: 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 23px; font-weight: 700; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tu-save { display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--plum); }
+.tu-save:hover { background: #fbe6f0; }
+.tu-chip {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 4px 12px; border-radius: 10px;
+  background: #fbe6f0; color: var(--plum); font-size: 13.5px; font-weight: 500;
+}
+.tu-chip svg { width: 16px; height: 16px; }
+.tu-lang {
+  position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px; min-height: 42px;
+  border: 1px solid #ebe0e5; border-radius: 999px; background: #fff;
+}
+.tu-lang select { appearance: none; border: 0; background: transparent; padding-right: 22px; margin-right: -22px; font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.tu-lang select:focus { outline: none; }
+.tu-lang:focus-within { border-color: #e7b8d3; box-shadow: 0 0 0 4px rgba(140, 29, 107, 0.08); }
+.tu-lang > svg:last-child { pointer-events: none; }
+.tu-menu { position: relative; }
+.tu-menu-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 190px;
+  padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 12px 40px rgba(26, 11, 46, 0.14);
+}
+.tu-menu-pop button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+  border: 0; border-radius: 10px; background: transparent; color: #b4232f; font-size: 15px; text-align: left;
+}
+.tu-menu-pop button:hover { background: #fdecee; }
+
+.tu-thread {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px; padding: 22px 26px 12px;
+  background: linear-gradient(180deg, rgba(253, 246, 249, 0.6), rgba(255, 255, 255, 0));
+}
+
+.tu-welcome { margin: auto; max-width: 560px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; }
+.tu-welcome img { width: 92px; height: auto; }
+.tu-welcome h2 { margin: 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 26px; }
+.tu-welcome p { margin: 0 0 8px; color: var(--muted); line-height: 1.55; }
+.tu-welcome .tu-chips { justify-content: center; }
+
+.tu-row { display: flex; align-items: flex-start; gap: 14px; }
+.tu-row-user { justify-content: flex-end; }
+.tu-avatar-bot { flex: none; width: 46px; height: 46px; object-fit: contain; padding: 4px; border-radius: 50%; background: #fdeee4; }
+.tu-avatar-user {
+  display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: #a33f87; color: #fff; font-size: 15px; font-weight: 600;
+}
+
+.tu-user-wrap { display: flex; align-items: flex-end; gap: 10px; max-width: min(640px, 80%); }
+.tu-bubble-user {
+  padding: 12px 18px; border-radius: 16px 16px 4px 16px; background: var(--plum); color: #fff;
+  font-size: 16.5px; line-height: 1.5;
+}
+.tu-bubble-user .katex { color: #fff; }
+
+.tu-bubble-bot {
+  min-width: 0; max-width: min(660px, 100%); padding: 14px 18px 12px;
+  border-radius: 4px 18px 18px 18px; background: #fff; border: 1px solid var(--db-line);
+  box-shadow: 0 4px 16px rgba(140, 29, 107, 0.05); font-size: 16px; line-height: 1.6;
+}
+.tu-bubble-bot.error { background: #fff6f6; border-color: #f4cfd3; }
+.tu-bubble-bot.error p { margin: 0 0 10px; }
+.tu-hint {
+  display: inline-block; margin-bottom: 8px; padding: 3px 12px; border-radius: 8px;
+  background: #fde9c8; color: #8a4b05; font-size: 14px; font-weight: 600;
+}
+.tu-bot-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.tu-bot-foot .tu-meta { margin-left: auto; }
+.tu-source {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px;
+  background: #fbe6f0; color: var(--plum); font-size: 14px; font-weight: 500;
+}
+.tu-source svg { width: 17px; height: 17px; flex: none; }
+.tu-source sup { font-size: 11px; font-weight: 700; }
+.tu-pill {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid #ebd8e2; background: #fff; color: var(--plum); font-size: 14px; font-weight: 500;
+}
+.tu-pill:hover:not(:disabled) { border-color: var(--plum); background: #fdf3f8; }
+.tu-meta { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.tu-ticks { color: #7b3fd0; display: inline-flex; }
+
+.tu-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.tu-chips-reply { padding-left: 60px; margin-top: -6px; }
+.tu-suggest {
+  min-height: 40px; padding: 0 18px; border-radius: 12px; border: 1.5px solid #e9b6d0;
+  background: #fff; color: var(--plum); font-size: 15px; font-weight: 500; text-align: left;
+}
+.tu-suggest:hover:not(:disabled) { background: #fdf3f8; border-color: var(--plum); }
+.tu-suggest:disabled, .tu-pill:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tu-typing { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 15px; }
+.tu-dots { display: inline-flex; gap: 4px; }
+.tu-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--plum); opacity: 0.3; animation: tu-blink 1.2s infinite; }
+.tu-dots i:nth-child(2) { animation-delay: 0.2s; }
+.tu-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes tu-blink { 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tu-dots i { animation: none; opacity: 0.7; } }
+
+/* ---------- Composer ---------- */
+.tu-composer {
+  display: flex; align-items: flex-end; gap: 12px; margin: 8px 18px 0; padding: 8px 8px 8px 12px;
+  border: 1.5px solid #e9cadb; border-radius: 18px; background: #fff;
+}
+.tu-composer:focus-within { border-color: var(--plum); box-shadow: 0 0 0 4px rgba(140, 29, 107, 0.08); }
+.tu-composer textarea {
+  flex: 1; min-width: 0; min-height: 50px; max-height: 160px; padding: 13px 4px; resize: none;
+  border: 0; background: transparent; font: inherit; font-size: 16.5px; line-height: 1.45; color: var(--ink);
+}
+.tu-composer textarea:focus { outline: none; }
+.tu-composer textarea::placeholder { color: #8a8294; }
+.tu-tool { display: grid; place-items: center; flex: none; width: 46px; height: 50px; border: 0; background: transparent; color: var(--muted); }
+.tu-tool:disabled { opacity: 0.45; cursor: not-allowed; }
+.tu-mic {
+  display: grid; place-items: center; flex: none; width: 46px; height: 46px; margin-bottom: 2px;
+  border-radius: 50%; border: 1.5px solid #e9b6d0; background: #fff; color: var(--plum);
+}
+.tu-mic.on { background: var(--plum); color: #fff; border-color: var(--plum); }
+.tu-send {
+  display: grid; place-items: center; flex: none; width: 56px; height: 50px;
+  border: 0; border-radius: 14px; background: var(--plum); color: #fff;
+}
+.tu-send:hover:not(:disabled) { background: var(--plum-dark); }
+.tu-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.tu-foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px;
+  padding: 8px 22px 12px; color: var(--muted); font-size: 13px;
+}
+.tu-foot > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.tu-foot svg { width: 16px; height: 16px; }
+
+.tu-new:focus-visible, .tu-chat:focus-visible, .tu-suggest:focus-visible, .tu-pill:focus-visible,
+.tu-send:focus-visible, .tu-mic:focus-visible, .tu-save:focus-visible, .tu-head-icon:focus-visible {
+  outline: 3px solid rgba(140, 29, 107, 0.35); outline-offset: 2px;
+}
+
+/* ---------- Maths renderer ---------- */
+.mt-text { white-space: pre-line; overflow-wrap: anywhere; }
+.mt-text .katex { font-size: 1.08em; white-space: normal; }
+.mt-display {
+  display: block; margin: 10px 0; padding: 10px 14px; overflow-x: auto; overflow-y: hidden;
+  border-radius: 12px; background: #faf5f7;
+}
+.tu-bubble-user .mt-display { background: rgba(255, 255, 255, 0.12); }
+.mt-display .katex-display { margin: 0; }
+.mt-text > p, .mt-sec > p { margin: 0 0 8px; }
+.mt-text > p:last-child, .mt-sec > :last-child { margin-bottom: 0; }
+.mt-text ul, .mt-text ol { margin: 4px 0 8px; padding-left: 22px; }
+.mt-text li { margin: 4px 0; }
+.mt-text ol > li::marker { color: var(--plum); font-weight: 700; }
+.mt-sec { margin-top: 12px; }
+.mt-h {
+  margin: 0 0 6px; color: var(--plum); font-size: 0.82em; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.mt-card { padding: 10px 14px; border-radius: 12px; border: 1px solid #f0d5e3; background: #fdf7fa; }
+.mt-card .mt-display { margin: 4px 0; background: #fff; }
+.mt-note {
+  padding: 6px 12px; border-left: 3px solid #e2a23b; border-radius: 6px;
+  background: #fff8ec; color: #7a5310; font-size: 0.9em;
+}
+.mt-turn { margin-top: 12px !important; padding: 8px 12px; border-radius: 10px; background: #f6eef8; }
+.mt-cite { margin-left: 2px; padding: 0 5px; border-radius: 6px; background: #fbe6f0; color: var(--plum); font-size: 0.7em; font-weight: 700; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .tu-page { grid-template-columns: minmax(0, 1fr); padding: 0 10px 10px; }
+  .tu-chats {
+    position: fixed; inset: 0 auto 0 0; z-index: 45; width: min(340px, 88vw); border-radius: 0 22px 22px 0;
+    background: #fdf7f6; transform: translateX(-105%); transition: transform 0.2s ease;
+  }
+  .tu-page.chats-open .tu-chats { transform: none; box-shadow: 0 0 60px rgba(26, 11, 46, 0.2); }
+  .tu-scrim { position: fixed; inset: 0; z-index: 44; background: rgba(26, 11, 46, 0.3); }
+  .tu-head-icon { display: inline-grid; }
+}
+
+@media (max-width: 600px) {
+  .tu-head { padding: 12px 14px; gap: 8px; }
+  .tu-head h1 { font-size: 19px; }
+  .tu-chip { display: none; }
+  .tu-lang { padding: 0 10px; }
+  .tu-lang > svg:first-child { display: none; }
+  .tu-thread { padding: 16px 12px 8px; gap: 14px; }
+  .tu-avatar-bot { width: 36px; height: 36px; }
+  .tu-row { gap: 8px; }
+  .tu-user-wrap { max-width: 88%; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .tu-avatar-user { display: none; }
+  .tu-chips-reply { padding-left: 0; margin-top: 0; }
+  .tu-composer { margin: 6px 8px 0; gap: 6px; }
+  .tu-tool { display: none; }
+  .tu-foot { padding: 6px 12px 8px; font-size: 12px; }
+  .tu-foot > span:last-child { display: none; }
+}

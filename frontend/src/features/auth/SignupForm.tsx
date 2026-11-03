@@ -99,7 +99,7 @@ export function SignupForm() {
         <span className="su-success-tick" aria-hidden="true">{ICONS.tick}</span>
         <h2>{s.successTitle}, {created.full_name.split(" ")[0]}!</h2>
         <p>{s.successText} <strong>{ends}</strong>.</p>
-        <a href="/" className="su-submit">{s.successCta} <ArrowRight /></a>
+        <a href="/dashboard" className="su-submit">{s.successCta} <ArrowRight /></a>
       </div>
     );
   }

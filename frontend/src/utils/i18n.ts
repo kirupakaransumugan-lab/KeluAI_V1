@@ -22,6 +22,143 @@ export interface Copy {
   signup: SignupCopy;
   login: LoginCopy;
   forgot: ForgotCopy;
+  dashboard: DashboardCopy;
+}
+
+/** Student dashboard. "{n}" is replaced with a number, "{name}" with the student's first name. */
+export interface DashboardCopy {
+  nav: {
+    home: string; practice: string; tutor: string; pastPapers: string; progress: string;
+    saved: string; subscription: string; settings: string; logout: string;
+    // Screen-reader labels
+    sidebar: string; openMenu: string; search: string; notifications: string; account: string;
+  };
+  greeting: { morning: string; afternoon: string; evening: string };
+  medium: { ta: string; en: string };
+  examYear: string;
+  trialDays: string;
+  trialLabel: string;
+  cheer: string;
+  goalEyebrow: string;
+  goalTitle: string;
+  goalMeta: string;
+  startQuiz: string;
+  plan: string;
+  needsWork: string;
+  continueTitle: string;
+  thisWeek: string;
+  /** Shown while a card has no data in the database yet. */
+  empty: Record<"plan" | "needsWork" | "continue" | "week", { title: string; text: string }>;
+  partner: string;
+  askPlaceholder: string;
+  ask: string;
+  voice: string;
+  attach: string;
+  comingSoon: string;
+  comingSoonText: string;
+  backHome: string;
+  loading: string;
+  crashTitle: string;
+  crashText: string;
+  reload: string;
+  tutor: TutorCopy;
+  practice: PracticeCopy;
+}
+
+/** Practice page. "{n}" / "{total}" / "{pct}" are numbers. */
+export interface PracticeCopy {
+  title: string;
+  subtitle: string;
+  tabs: { all: string; topic: string; papers: string; daily: string; saved: string };
+  topics: string;
+  questionsTitle: string;
+  progress: string;
+  steps: string;
+  qLabel: string;
+  of: string;
+  save: string;
+  unsave: string;
+  hint: string;
+  stepHint: string;
+  formula: string;
+  formulaAsk: string;
+  hintsTitle: string;
+  noMoreHints: string;
+  stepOf: string;
+  pickWorking: string;
+  check: string;
+  correct: string;
+  tryAgain: string;
+  showAnswer: string;
+  answer: string;
+  aiLabel: string;
+  modelledOn: string;
+  previous: string;
+  next: string;
+  continue: string;
+  finish: string;
+  doneTitle: string;
+  doneText: string;
+  newSet: string;
+  startTitle: string;
+  startText: string;
+  start: string;
+  generating: string;
+  generatingText: string;
+  dailyTitle: string;
+  dailyText: string;
+  dailyWarn: string;
+  savedEmpty: string;
+  savedEmptyText: string;
+  remove: string;
+  practiceTopic: string;
+  errors: { notIndexed: string; notConfigured: string; failed: string; network: string };
+}
+
+/** AI tutor chat. "{n}" / "{max}" are numbers. */
+export interface TutorCopy {
+  newChat: string;
+  search: string;
+  groups: { today: string; yesterday: string; week: string; older: string };
+  noChats: string;
+  noMatches: string;
+  savedQuestion: string;
+  messages: string;
+  bannerTitle: string;
+  bannerText: string;
+  untitled: string;
+  modeChip: string;
+  save: string;
+  unsave: string;
+  more: string;
+  deleteChat: string;
+  toggleChats: string;
+  welcomeTitle: string;
+  welcomeText: string;
+  starters: string[];
+  hint: string;
+  you: string;
+  listen: string;
+  stop: string;
+  thinking: string;
+  nextHint: string;
+  iThink: string;
+  iThinkPrefill: string;
+  similar: string;
+  nextHintMessage: string;
+  similarMessage: string;
+  placeholder: string;
+  attach: string;
+  attachSoon: string;
+  voice: string;
+  voiceStop: string;
+  send: string;
+  usage: string;
+  limitReached: string;
+  disclaimer: string;
+  truncated: string;
+  retry: string;
+  errors: { notConfigured: string; failed: string; network: string };
 }
 
 export interface ForgotCopy {
@@ -424,7 +561,7 @@ const en: Copy = {
     },
     successTitle: "You're in",
     successText: "Your free trial is active until",
-    successCta: "Back to home",
+    successCta: "Go to my dashboard",
   },
   login: {
     titleLead: "Welcome back",
@@ -465,7 +602,7 @@ const en: Copy = {
     },
     successTitle: "Welcome back",
     successText: "You're logged in.",
-    successCta: "Back to home",
+    successCta: "Go to my dashboard",
   },
   forgot: {
     titleLead: "Forgot your",
@@ -510,6 +647,150 @@ const en: Copy = {
       expired: "This reset took too long. Please start again.",
       network: "We couldn't reach KELU. Check your connection and try again.",
       generic: "Something went wrong. Please try again.",
+    },
+  },
+  dashboard: {
+    nav: {
+      home: "Home", practice: "Practice", tutor: "AI Tutor", pastPapers: "Past Papers", progress: "Progress",
+      saved: "Saved Questions", subscription: "Subscription", settings: "Settings", logout: "Log out",
+      sidebar: "Dashboard", openMenu: "Open menu", search: "Search", notifications: "Notifications", account: "Account menu",
+    },
+    greeting: { morning: "Good morning, {name}", afternoon: "Good afternoon, {name}", evening: "Good evening, {name}" },
+    medium: { ta: "Tamil medium", en: "English medium" },
+    examYear: "A/L {n}",
+    trialDays: "{n} days",
+    trialLabel: "in free trial",
+    cheer: "Let's start learning today! You can do it!",
+    goalEyebrow: "Today's goal",
+    goalTitle: "Daily quiz · 10 questions",
+    goalMeta: "About 15 min · Past-paper style questions",
+    startQuiz: "Start quiz",
+    plan: "Your study plan",
+    needsWork: "Needs work",
+    continueTitle: "Continue",
+    thisWeek: "This week",
+    empty: {
+      plan: { title: "No study plan yet", text: "Take your first quiz and KELU will build a plan around the topics you find hardest." },
+      needsWork: { title: "No topic scores yet", text: "Answer a few questions and the topics you need to work on will show up here." },
+      continue: { title: "Nothing to continue yet", text: "Your tutor chats and saved questions will appear here." },
+      week: { title: "No activity this week", text: "Your daily goals, questions answered and average score will be tracked here." },
+    },
+    partner: "Your AI Maths Partner for A/L Success",
+    askPlaceholder: "Ask KELU anything about Combined Maths...",
+    ask: "Ask KELU",
+    voice: "Ask by voice",
+    attach: "Attach your working",
+    comingSoon: "Coming soon",
+    comingSoonText: "This part of KELU is being built. Check back soon!",
+    backHome: "Back to dashboard",
+    loading: "Loading your dashboard...",
+    crashTitle: "Something went wrong",
+    crashText: "This page hit an error. Reloading usually fixes it.",
+    reload: "Reload",
+    tutor: {
+      newChat: "New chat",
+      search: "Search conversations...",
+      groups: { today: "Today", yesterday: "Yesterday", week: "This week", older: "Earlier" },
+      noChats: "No chats yet. Ask your first question!",
+      noMatches: "No chats match your search.",
+      savedQuestion: "Saved question",
+      messages: "{n} messages",
+      bannerTitle: "Ask anything, learn step by step!",
+      bannerText: "Hints, not answers.",
+      untitled: "New chat",
+      modeChip: "Hints first · answers from past papers",
+      save: "Save this chat",
+      unsave: "Remove from saved",
+      more: "More options",
+      deleteChat: "Delete chat",
+      toggleChats: "Show chats",
+      welcomeTitle: "Hi! I'm KELU, your maths tutor.",
+      welcomeText: "Tell me which question you're stuck on. I'll give you hints one step at a time, so you learn how to solve it yourself.",
+      starters: [
+        "How do I start integrating x eˣ dx?",
+        "Explain the dot product of two vectors",
+        "Help me with 2019 Paper I Part A Q3",
+      ],
+      hint: "Hint {n} of {max}",
+      you: "You",
+      listen: "Listen",
+      stop: "Stop",
+      thinking: "KELU is thinking...",
+      nextHint: "Give me the next hint",
+      iThink: "I think it's – because...",
+      iThinkPrefill: "I think it's  because ",
+      similar: "Show me a similar question",
+      nextHintMessage: "Give me the next hint, please.",
+      similarMessage: "Show me a similar question so I can practise.",
+      placeholder: "Type your question or message...",
+      attach: "Attach your working",
+      attachSoon: "Attaching your working is coming soon",
+      voice: "Ask by voice",
+      voiceStop: "Stop listening",
+      send: "Send",
+      usage: "{n}/{max} messages used today",
+      limitReached: "You've used today's {max} messages. Come back tomorrow!",
+      disclaimer: "KELU can make mistakes. Check important steps with your teacher.",
+      truncated: "(Reply cut short. Ask me to continue.)",
+      retry: "Try again",
+      errors: {
+        notConfigured: "The tutor isn't set up yet. Please try again later.",
+        failed: "I couldn't answer that just now. Please try again.",
+        network: "We couldn't reach KELU. Check your connection and try again.",
+      },
+    },
+    practice: {
+      title: "Practice",
+      subtitle: "Build your skills with topic-wise questions, past paper problems and daily practice.",
+      tabs: { all: "All Practice", topic: "By Topic", papers: "Past Papers", daily: "Daily Quiz", saved: "Saved Questions" },
+      topics: "Topics",
+      questionsTitle: "Practice Questions",
+      progress: "{n} / {total} questions",
+      steps: "{n} / {total} steps",
+      qLabel: "Q. {n}",
+      of: "{n} of {total}",
+      save: "Save question",
+      unsave: "Remove from saved",
+      hint: "Hint",
+      stepHint: "Step Hint",
+      formula: "Formula",
+      formulaAsk: "Which formulas or results do I need for this question? Don't solve it for me.\n\n{q}",
+      hintsTitle: "Hints",
+      noMoreHints: "That's every hint. Try Step Hint to work through it.",
+      stepOf: "Step {n} of {total}",
+      pickWorking: "Pick the correct working for this step:",
+      check: "Check",
+      correct: "Correct!",
+      tryAgain: "Not quite. Read why, then try again.",
+      showAnswer: "Show answer",
+      answer: "Answer",
+      aiLabel: "Practice question (AI-generated)",
+      modelledOn: "In the style of {src}",
+      previous: "Previous",
+      next: "Next",
+      continue: "Continue Practice",
+      finish: "Finish",
+      doneTitle: "Set complete!",
+      doneText: "You worked through {n} of {total} questions. Start a new set to keep going.",
+      newSet: "New set",
+      startTitle: "Ready to practise?",
+      startText: "KELU writes 10 new questions in the style of real A/L Paper I Part A questions. Work through each one step by step.",
+      start: "Start practice",
+      generating: "Writing your questions...",
+      generatingText: "This takes about a minute. KELU is studying past papers to match their style.",
+      dailyTitle: "Daily quiz · 10 questions",
+      dailyText: "A fresh set of past-paper style questions, one for each Paper I Part A topic.",
+      dailyWarn: "This replaces your current set.",
+      savedEmpty: "No saved questions yet",
+      savedEmptyText: "Tap the bookmark on any question to keep it here.",
+      remove: "Remove",
+      practiceTopic: "Practise this topic",
+      errors: {
+        notIndexed: "Past papers haven't been loaded yet, so KELU can't write questions. Please try again later.",
+        notConfigured: "Practice isn't set up yet. Please try again later.",
+        failed: "Couldn't write your questions just now. Please try again.",
+        network: "We couldn't reach KELU. Check your connection and try again.",
+      },
     },
   },
 };
@@ -718,7 +999,7 @@ const ta: Copy = {
     },
     successTitle: "வரவேற்கிறோம்",
     successText: "உங்கள் இலவச சோதனை முடியும் நாள்:",
-    successCta: "முகப்புக்குத் திரும்பு",
+    successCta: "என் பலகைக்குச் செல்",
   },
   login: {
     titleLead: "மீண்டும் வருக!",
@@ -759,7 +1040,7 @@ const ta: Copy = {
     },
     successTitle: "மீண்டும் வருக",
     successText: "நீங்கள் உள்நுழைந்துவிட்டீர்கள்.",
-    successCta: "முகப்புக்குத் திரும்பு",
+    successCta: "என் பலகைக்குச் செல்",
   },
   forgot: {
     titleLead: "உங்கள்",
@@ -804,6 +1085,150 @@ const ta: Copy = {
       expired: "மீட்டமைப்புக்கு அதிக நேரம் ஆகிவிட்டது. மீண்டும் தொடங்குங்கள்.",
       network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
       generic: "ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயலுங்கள்.",
+    },
+  },
+  dashboard: {
+    nav: {
+      home: "முகப்பு", practice: "பயிற்சி", tutor: "AI ஆசிரியர்", pastPapers: "கடந்தகால வினாத்தாள்கள்", progress: "முன்னேற்றம்",
+      saved: "சேமித்த வினாக்கள்", subscription: "சந்தா", settings: "அமைப்புகள்", logout: "வெளியேறு",
+      sidebar: "கட்டுப்பாட்டுப் பலகை", openMenu: "பட்டியலைத் திற", search: "தேடு", notifications: "அறிவிப்புகள்", account: "கணக்குப் பட்டியல்",
+    },
+    greeting: { morning: "காலை வணக்கம், {name}", afternoon: "மதிய வணக்கம், {name}", evening: "மாலை வணக்கம், {name}" },
+    medium: { ta: "தமிழ் மொழிமூலம்", en: "ஆங்கில மொழிமூலம்" },
+    examYear: "உ/த {n}",
+    trialDays: "{n} நாட்கள்",
+    trialLabel: "இலவச சோதனைக் காலம்",
+    cheer: "இன்றே கற்கத் தொடங்குவோம்! உங்களால் முடியும்!",
+    goalEyebrow: "இன்றைய இலக்கு",
+    goalTitle: "தினசரி வினாடி வினா · 10 வினாக்கள்",
+    goalMeta: "சுமார் 15 நிமிடம் · கடந்தகால வினாத்தாள் பாணி வினாக்கள்",
+    startQuiz: "தொடங்கு",
+    plan: "உங்கள் கற்றல் திட்டம்",
+    needsWork: "கவனம் தேவை",
+    continueTitle: "தொடருங்கள்",
+    thisWeek: "இந்த வாரம்",
+    empty: {
+      plan: { title: "இன்னும் கற்றல் திட்டம் இல்லை", text: "உங்கள் முதல் வினாடி வினாவைச் செய்யுங்கள்; உங்களுக்குக் கடினமான தலைப்புகளைக் கொண்டு KELU ஒரு திட்டத்தை உருவாக்கும்." },
+      needsWork: { title: "இன்னும் தலைப்புப் புள்ளிகள் இல்லை", text: "சில வினாக்களுக்கு விடையளியுங்கள்; கவனம் தேவையான தலைப்புகள் இங்கே தோன்றும்." },
+      continue: { title: "தொடர இன்னும் எதுவும் இல்லை", text: "உங்கள் ஆசிரியர் உரையாடல்களும் சேமித்த வினாக்களும் இங்கே தோன்றும்." },
+      week: { title: "இந்த வாரம் செயற்பாடு இல்லை", text: "உங்கள் தினசரி இலக்குகள், விடையளித்த வினாக்கள், சராசரிப் புள்ளி இங்கே பதிவாகும்." },
+    },
+    partner: "உ/த வெற்றிக்கான உங்கள் AI கணிதத் துணை",
+    askPlaceholder: "இணைந்த கணிதம் பற்றி KELU இடம் எதையும் கேளுங்கள்...",
+    ask: "KELU இடம் கேள்",
+    voice: "குரலால் கேள்",
+    attach: "உங்கள் செய்கையை இணை",
+    comingSoon: "விரைவில்",
+    comingSoonText: "KELU இன் இந்தப் பகுதி உருவாக்கப்பட்டு வருகிறது. விரைவில் பாருங்கள்!",
+    backHome: "கட்டுப்பாட்டுப் பலகைக்குத் திரும்பு",
+    loading: "உங்கள் பலகை ஏற்றப்படுகிறது...",
+    crashTitle: "ஏதோ தவறு நடந்துவிட்டது",
+    crashText: "இந்தப் பக்கத்தில் பிழை ஏற்பட்டது. மீள ஏற்றினால் பொதுவாகச் சரியாகும்.",
+    reload: "மீள ஏற்று",
+    tutor: {
+      newChat: "புதிய உரையாடல்",
+      search: "உரையாடல்களைத் தேடு...",
+      groups: { today: "இன்று", yesterday: "நேற்று", week: "இந்த வாரம்", older: "முன்பு" },
+      noChats: "இன்னும் உரையாடல்கள் இல்லை. உங்கள் முதல் வினாவைக் கேளுங்கள்!",
+      noMatches: "உங்கள் தேடலுக்குப் பொருந்தும் உரையாடல் இல்லை.",
+      savedQuestion: "சேமித்த வினா",
+      messages: "{n} செய்திகள்",
+      bannerTitle: "எதையும் கேளுங்கள், படிப்படியாகக் கற்றுக்கொள்ளுங்கள்!",
+      bannerText: "விடைகள் அல்ல, குறிப்புகள்.",
+      untitled: "புதிய உரையாடல்",
+      modeChip: "முதலில் குறிப்புகள் · கடந்தகால வினாத்தாள்களிலிருந்து விடைகள்",
+      save: "இந்த உரையாடலைச் சேமி",
+      unsave: "சேமிப்பிலிருந்து நீக்கு",
+      more: "மேலும் தெரிவுகள்",
+      deleteChat: "உரையாடலை நீக்கு",
+      toggleChats: "உரையாடல்களைக் காட்டு",
+      welcomeTitle: "வணக்கம்! நான் KELU, உங்கள் கணித ஆசிரியர்.",
+      welcomeText: "எந்த வினாவில் சிக்கியுள்ளீர்கள் என்று சொல்லுங்கள். நீங்களே தீர்க்கக் கற்றுக்கொள்ள, ஒவ்வொரு படியாகக் குறிப்புகள் தருவேன்.",
+      starters: [
+        "x eˣ dx ஐத் தொகையிடுவதை எப்படித் தொடங்குவது?",
+        "இரு காவிகளின் புள்ளிப் பெருக்கத்தை விளக்குங்கள்",
+        "2019 வினாத்தாள் I பகுதி A வினா 3 இற்கு உதவுங்கள்",
+      ],
+      hint: "குறிப்பு {n} / {max}",
+      you: "நீங்கள்",
+      listen: "கேள்",
+      stop: "நிறுத்து",
+      thinking: "KELU யோசிக்கிறது...",
+      nextHint: "அடுத்த குறிப்பைத் தாருங்கள்",
+      iThink: "இது – என்று நினைக்கிறேன், ஏனெனில்...",
+      iThinkPrefill: "இது  என்று நினைக்கிறேன், ஏனெனில் ",
+      similar: "இதைப் போன்ற வினா ஒன்றைக் காட்டுங்கள்",
+      nextHintMessage: "தயவுசெய்து அடுத்த குறிப்பைத் தாருங்கள்.",
+      similarMessage: "பயிற்சி செய்ய இதைப் போன்ற வினா ஒன்றைக் காட்டுங்கள்.",
+      placeholder: "உங்கள் வினா அல்லது செய்தியைத் தட்டச்சு செய்யுங்கள்...",
+      attach: "உங்கள் செய்கையை இணை",
+      attachSoon: "செய்கையை இணைக்கும் வசதி விரைவில்",
+      voice: "குரலால் கேள்",
+      voiceStop: "கேட்பதை நிறுத்து",
+      send: "அனுப்பு",
+      usage: "இன்று {n}/{max} செய்திகள் பயன்படுத்தப்பட்டன",
+      limitReached: "இன்றைய {max} செய்திகளையும் பயன்படுத்திவிட்டீர்கள். நாளை மீண்டும் வாருங்கள்!",
+      disclaimer: "KELU தவறு செய்யலாம். முக்கியமான படிகளை உங்கள் ஆசிரியரிடம் சரிபாருங்கள்.",
+      truncated: "(பதில் இடையில் நின்றுவிட்டது. தொடரச் சொல்லுங்கள்.)",
+      retry: "மீண்டும் முயல்",
+      errors: {
+        notConfigured: "ஆசிரியர் இன்னும் அமைக்கப்படவில்லை. பின்னர் முயலுங்கள்.",
+        failed: "இப்போது பதிலளிக்க முடியவில்லை. மீண்டும் முயலுங்கள்.",
+        network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+      },
+    },
+    practice: {
+      title: "பயிற்சி",
+      subtitle: "தலைப்புவாரி வினாக்கள், கடந்தகால வினாத்தாள் கணக்குகள், தினசரிப் பயிற்சி மூலம் உங்கள் திறனை வளருங்கள்.",
+      tabs: { all: "அனைத்துப் பயிற்சி", topic: "தலைப்புவாரி", papers: "கடந்தகால வினாத்தாள்கள்", daily: "தினசரி வினாடி வினா", saved: "சேமித்த வினாக்கள்" },
+      topics: "தலைப்புகள்",
+      questionsTitle: "பயிற்சி வினாக்கள்",
+      progress: "{n} / {total} வினாக்கள்",
+      steps: "{n} / {total} படிகள்",
+      qLabel: "வினா {n}",
+      of: "{total} இல் {n}",
+      save: "வினாவைச் சேமி",
+      unsave: "சேமிப்பிலிருந்து நீக்கு",
+      hint: "குறிப்பு",
+      stepHint: "படிக் குறிப்பு",
+      formula: "சூத்திரம்",
+      formulaAsk: "இந்த வினாவுக்கு எந்தச் சூத்திரங்கள் அல்லது முடிவுகள் தேவை? எனக்காகத் தீர்க்க வேண்டாம்.\n\n{q}",
+      hintsTitle: "குறிப்புகள்",
+      noMoreHints: "எல்லாக் குறிப்புகளும் இவைதான். படிக் குறிப்பைப் பயன்படுத்தித் தீர்த்துப் பாருங்கள்.",
+      stepOf: "படி {n} / {total}",
+      pickWorking: "இந்தப் படிக்குச் சரியான செய்கையைத் தெரிவுசெய்யுங்கள்:",
+      check: "சரிபார்",
+      correct: "சரி!",
+      tryAgain: "சரியில்லை. காரணத்தை வாசித்து மீண்டும் முயலுங்கள்.",
+      showAnswer: "விடையைக் காட்டு",
+      answer: "விடை",
+      aiLabel: "பயிற்சி வினா (AI உருவாக்கியது)",
+      modelledOn: "{src} பாணியில்",
+      previous: "முந்தையது",
+      next: "அடுத்தது",
+      continue: "பயிற்சியைத் தொடர்",
+      finish: "முடி",
+      doneTitle: "தொகுதி முடிந்தது!",
+      doneText: "{total} வினாக்களில் {n} ஐச் செய்து முடித்தீர்கள். தொடர புதிய தொகுதியைத் தொடங்குங்கள்.",
+      newSet: "புதிய தொகுதி",
+      startTitle: "பயிற்சி செய்யத் தயாரா?",
+      startText: "உண்மையான உ/த வினாத்தாள் I பகுதி A வினாக்களின் பாணியில் KELU 10 புதிய வினாக்களை எழுதும். ஒவ்வொன்றையும் படிப்படியாகச் செய்யுங்கள்.",
+      start: "பயிற்சியைத் தொடங்கு",
+      generating: "உங்கள் வினாக்கள் எழுதப்படுகின்றன...",
+      generatingText: "இதற்குச் சுமார் ஒரு நிமிடம் ஆகும். பாணியைப் பொருத்த KELU கடந்தகால வினாத்தாள்களைப் படிக்கிறது.",
+      dailyTitle: "தினசரி வினாடி வினா · 10 வினாக்கள்",
+      dailyText: "வினாத்தாள் I பகுதி A இன் ஒவ்வொரு தலைப்புக்கும் ஒன்றாக, கடந்தகால வினாத்தாள் பாணியில் புதிய வினாக்கள்.",
+      dailyWarn: "இது உங்கள் தற்போதைய தொகுதியை மாற்றும்.",
+      savedEmpty: "இன்னும் சேமித்த வினாக்கள் இல்லை",
+      savedEmptyText: "எந்த வினாவிலும் உள்ள புத்தகக்குறியைத் தட்டி இங்கே வைத்திருங்கள்.",
+      remove: "நீக்கு",
+      practiceTopic: "இந்தத் தலைப்பைப் பயிற்சி செய்",
+      errors: {
+        notIndexed: "கடந்தகால வினாத்தாள்கள் இன்னும் ஏற்றப்படவில்லை, எனவே KELU வினாக்களை எழுத முடியாது. பின்னர் முயலுங்கள்.",
+        notConfigured: "பயிற்சி இன்னும் அமைக்கப்படவில்லை. பின்னர் முயலுங்கள்.",
+        failed: "இப்போது வினாக்களை எழுத முடியவில்லை. மீண்டும் முயலுங்கள்.",
+        network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+      },
     },
   },
 };

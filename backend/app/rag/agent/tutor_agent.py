@@ -140,5 +140,5 @@ class LLMNotConfigured(RuntimeError):
 def build_llm(api_key: str | None, base_url: str = OPENROUTER_URL) -> OpenRouterLLM:
     """Every KELU model call goes through OpenRouter."""
     if not api_key:
-        raise LLMNotConfigured("OPENROUTER_API_KEY is not configured in backend/.env")
+        raise LLMNotConfigured("LLM_API_KEY is not configured in backend/.env")
     return OpenRouterLLM(api_key, base_url)

@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: kelu-backend
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: alembic>=1.13
+Requires-Dist: pymysql>=1.1
+Requires-Dist: cryptography>=42
+Requires-Dist: pydantic[email]>=2.7
+Requires-Dist: pydantic-settings>=2.3
+Requires-Dist: bcrypt>=4.1
+Requires-Dist: pyjwt>=2.8
+Requires-Dist: tzdata>=2024.1
+Requires-Dist: qdrant-client>=1.12
+Requires-Dist: httpx>=0.27
+Requires-Dist: sentence-transformers>=3.0
+Requires-Dist: pypdf>=5.0
+Requires-Dist: pypdfium2>=4.30
+Requires-Dist: pillow>=10.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

@@ -1,8 +1,14 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
+
+# backend/.env, found by absolute path so the app starts from any working directory
+# (a bare ".env" is relative to where uvicorn is launched, e.g. the repo root).
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -12,7 +18,7 @@ class Settings(BaseSettings):
     start without them rather than silently running with an insecure value.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     # Either one DATABASE_URL, or the separate DATABASE_* parts below (the URL wins if both are set).
     database_url: str | None = Field(None, alias="DATABASE_URL")

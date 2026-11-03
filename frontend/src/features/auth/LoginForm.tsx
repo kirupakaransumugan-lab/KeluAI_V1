@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
 import { ArrowRight } from "../../components/ui/Button";
 import { ApiError, authApi, type User } from "../../services/api";
@@ -20,6 +21,12 @@ export function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<User>();
   const google = useGoogleSignIn(setUser);
+  const navigate = useNavigate();
+
+  // Every account starts as a student; signing in lands on the student dashboard.
+  useEffect(() => {
+    if (user) navigate("/dashboard", { replace: true });
+  }, [user, navigate]);
   const shownError = formError ?? google.error;
 
   async function onSubmit(e: FormEvent) {
@@ -56,7 +63,7 @@ export function LoginForm() {
         <span className="su-success-tick" aria-hidden="true">{ICONS.tick}</span>
         <h2>{l.successTitle}, {user.full_name.split(" ")[0]}!</h2>
         <p>{l.successText}</p>
-        <a href="/" className="su-submit">{l.successCta} <ArrowRight /></a>
+        <a href="/dashboard" className="su-submit">{l.successCta} <ArrowRight /></a>
       </div>
     );
   }

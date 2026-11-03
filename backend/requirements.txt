@@ -1,0 +1,44 @@
+# KELU backend: exact versions installed in backend/.venv (Python 3.13), checked 2026-11-03.
+# pyproject.toml keeps the loose ranges; this file pins what is known to work together.
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate            (Windows)   |   source .venv/bin/activate   (macOS/Linux)
+#   pip install -r requirements.txt
+#
+# Only direct dependencies are listed; pip resolves their sub-dependencies.
+
+# ---- API ----
+fastapi==0.161.1
+uvicorn[standard]==0.54.0
+pydantic[email]==2.14.1
+pydantic-settings==2.16.1
+
+# ---- Database (MySQL) ----
+sqlalchemy==2.1.6
+alembic==1.20.1
+pymysql==1.2.3
+cryptography==50.0.2         # PyMySQL needs it for MySQL 8 caching_sha2_password
+
+# ---- Auth ----
+bcrypt==5.0.0
+pyjwt==2.15.1
+
+# ---- Time zones (Asia/Colombo on Windows) ----
+tzdata==2026.5
+
+# ---- RAG tutor: Qdrant + OpenRouter + local BGE-M3 embeddings ----
+qdrant-client==1.20.0        # keep within one minor version of the Qdrant server (Docker: qdrant/qdrant:v1.20.0)
+httpx==0.28.1
+sentence-transformers==6.2.0
+transformers==5.22.1
+# CPU build. The default Windows wheel from PyPI is CPU-only; on Linux, pip pulls the
+# much larger CUDA build unless you add: --index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0
+
+# ---- PDFs: text extraction and page rendering for OCR ----
+pypdf==6.21.4
+pypdfium2==5.14.0
+pillow==13.0.0
+
+# ---- Tests ----
+pytest==9.1.1

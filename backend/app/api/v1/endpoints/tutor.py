@@ -35,6 +35,7 @@ class ChatRequest(BaseModel):
     history: list[Turn] = Field(min_length=1)     # ends with the student's new message
     mode: TutorMode = TutorMode.PRACTICE
     lang: str = Field(default="en", pattern="^(en|ta)$")
+    hint_level: int = Field(default=0, ge=0, le=3)   # 0 nudge .. 3 worked step; the client raises it
 
 
 class QuizRequest(BaseModel):
@@ -89,13 +90,14 @@ def chat(req: ChatRequest, user: User = Depends(get_current_user),
     if req.history[-1].role != "user":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "history_must_end_with_user"})
     try:
-        res = agent.reply(scope=_scope(user), mode=req.mode, language=req.lang,
+        res = agent.reply(scope=_scope(user), mode=req.mode, language=req.lang, hint_level=req.hint_level,
                           history=[t.model_dump() for t in req.history[-HISTORY_TURNS:]])
     except Exception:
         log.exception("tutor reply failed for user %s", user.id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail={"code": "tutor_failed"}) from None
     return {"content": res.content, "sources": res.sources, "tool_calls": res.tool_calls,
-            "tokens": res.tokens_used, "truncated": res.truncated, "model": res.model_name}
+            "tokens": res.tokens_used, "truncated": res.truncated, "model": res.model_name,
+            "hint_level": res.hint_level}
 
 
 @router.post("/quiz")
