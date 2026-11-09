@@ -214,12 +214,14 @@ export type OverviewDays = 7 | 30 | 90;
 export type MediumFilter = "all" | Medium;
 export interface AdminOverview {
   range: { days: OverviewDays; medium: MediumFilter; from: string; to: string };
-  kpis: Record<"total_students" | "new_signups" | "active_trials" | "paid_subscribers" | "trial_to_paid_pct", AdminKpi>;
+  kpis: Record<"total_students" | "new_signups" | "active_trials" | "paid_subscribers" | "revenue_lkr" | "trial_to_paid_pct", AdminKpi>;
   signups_per_day: { date: string; count: number }[];
   latest_signups: {
     id: number; full_name: string; email: string; medium: Medium | null;
     joined_at: string; status: "trial" | "paid" | "expired" | "cancelled";
   }[];
+  revenue_per_month: { month: string; amount_lkr: number }[];      // "2026-11", oldest first
+  latest_payments: { id: number; full_name: string; plan: string; amount_lkr: number; method: PaymentMethod; paid_at: string }[];
 }
 
 /** A question the AI wrote, waiting for an admin's review. */
@@ -277,7 +279,56 @@ export interface AdminStudentDetail {
   subscription: SubscriptionSummary;
 }
 
+/** Admin > Subscriptions & Payments (backend app/services/admin_billing.py). */
+export type PaymentMethod = "bank_transfer" | "cash" | "card" | "other";
+export interface BillingRow {
+  user_id: number;
+  full_name: string;
+  email: string;
+  is_active: boolean;
+  state: AdminStudentRow["plan_state"];
+  current: SubscriptionRow | null;
+}
+export interface BillingPayment {
+  id: number;
+  user_id: number;
+  student: string;
+  email: string | null;
+  plan: "monthly" | "annual";
+  amount_lkr: number;
+  method: PaymentMethod;
+  reference: string | null;
+  note: string | null;
+  paid_at: string;
+  recorded_by: string | null;
+}
+export interface BillingOverview {
+  kpis: { paid: number; trials: number; expiring: number; ended: number; revenue_30d: number; revenue_total: number };
+  subscriptions: BillingRow[];
+  payments: BillingPayment[];
+  plans: SubscriptionSummary["plans"];
+  methods: PaymentMethod[];
+  expiring_days: number;
+  revenue_days: number;
+  limit: number;
+}
+export interface NewPayment {
+  user_id: number;
+  plan: "monthly" | "annual";
+  amount_lkr: number;
+  method: PaymentMethod;
+  reference?: string;
+  note?: string;
+  paid_at?: string;
+}
+
 export const adminApi = {
+  billing: (q = "") => request<BillingOverview>("GET", `/admin/billing?q=${encodeURIComponent(q)}`),
+  recordPayment: (p: NewPayment) => request<{ id: number; subscription_id: number }>("POST", "/admin/billing/payments", p),
+  removePayment: (id: number) => request<void>("DELETE", `/admin/billing/payments/${id}`),
+  extendTrial: (userId: number, days: number) =>
+    request<SubscriptionSummary>("POST", `/admin/billing/students/${userId}/extend-trial`, { days }),
+  cancelSubscription: (subId: number) => request<SubscriptionSummary>("POST", `/admin/billing/subscriptions/${subId}/cancel`),
   students: (q: string, medium: MediumFilter) =>
     request<{ students: AdminStudentRow[]; limit: number }>(
       "GET", `/admin/students?q=${encodeURIComponent(q)}&medium=${medium}`),

@@ -19,6 +19,7 @@ import { AdminLayout } from "../layouts/AdminLayout";
 import { AdminComingSoon, AdminOverview } from "../features/admin/AdminOverview";
 import { AdminFeedback } from "../features/admin/AdminFeedback";
 import { AdminQuizBank } from "../features/admin/AdminQuizBank";
+import { AdminPayments } from "../features/admin/AdminPayments";
 import { AdminStudentDetail, AdminStudents } from "../features/admin/AdminStudents";
 
 export function AppRouter() {
@@ -51,6 +52,7 @@ export function AppRouter() {
           <Route index element={<AdminOverview />} />
           <Route path="students" element={<AdminStudents />} />
           <Route path="students/:id" element={<AdminStudentDetail />} />
+          <Route path="payments" element={<AdminPayments />} />
           <Route path="quiz-bank" element={<AdminQuizBank />} />
           <Route path="feedback" element={<AdminFeedback />} />
           <Route path="*" element={<AdminComingSoon />} />

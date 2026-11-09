@@ -216,3 +216,4 @@
   .ad-st-crumbs { font-size: 16px; }
   .ad-st-search input { width: 100%; }
 }
+.ad-bl-from-student { align-self: flex-start; text-decoration: none; }

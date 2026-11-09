@@ -436,7 +436,8 @@ function SubscriptionTab({ d, busy, onSet }: { d: Detail; busy: boolean; onSet: 
             </table>
           </div>
         ) : <p className="ad-st-empty">No plans on record.</p>}
-        {!payments_enabled && <p className="ad-st-note">Online payments aren't switched on yet, so plans only change when an admin adds one.</p>}
+        {!payments_enabled && <p className="ad-st-note">Online payments aren't switched on yet, so a paid plan starts when an admin records a payment.</p>}
+        <Link to={`/admin/payments?record=${d.student.id}`} className="ad-st-btn ad-bl-from-student">{icons.coins}Record payment</Link>
       </Panel>
     </div>
   );

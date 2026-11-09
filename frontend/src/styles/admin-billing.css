@@ -1,0 +1,93 @@
+/* =====================================================================
+   Admin > Subscriptions & Payments (features/admin/AdminPayments.tsx). Prefix ad-bl-.
+   Uses admin.css (cards, tables, KPI tiles) and admin-students.css (buttons, modal, tokens).
+   ===================================================================== */
+.ad-bl-record { padding: 12px 22px; }
+.ad-bl-banner {
+  display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 16px; border-radius: 14px;
+  background: var(--s-fff6e8); color: var(--t-7a4c0b); font-size: 14.5px; line-height: 1.45;
+}
+.ad-bl-banner svg { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+
+/* Tabs + search bar */
+.ad-bl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.ad-bl-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 16px; background: var(--ad-st-tab); }
+.ad-bl-tabs button {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--ink); font: inherit; font-size: 15.5px; font-weight: 600; cursor: pointer;
+}
+.ad-bl-tabs button svg { width: 20px; height: 20px; color: var(--plum-ink); }
+.ad-bl-tabs button span { padding: 1px 8px; border-radius: 999px; background: var(--s-ffffff); color: var(--muted); font-size: 12.5px; }
+.ad-bl-tabs button.active { background: linear-gradient(90deg, var(--ad-st-ring-a), var(--ad-st-ring-b)); color: #fff; }
+.ad-bl-tabs button.active svg { color: #fff; }
+.ad-bl-tabs button.active span { background: rgba(255, 255, 255, 0.25); color: #fff; }
+
+.ad-bl-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ad-bl-chips button {
+  padding: 6px 14px; border: 1px solid var(--ad-line); border-radius: 999px; background: var(--s-ffffff);
+  color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.ad-bl-chips button.active { border-color: transparent; background: var(--ad-st-h1); color: var(--plum-ink); }
+
+/* Rows */
+.ad-bl-actions { display: flex; justify-content: flex-end; }
+.ad-bl-menu { position: fixed; left: auto; bottom: auto; z-index: 50; }
+.ad-bl-dots { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; }
+.ad-bl-dots:hover, .ad-bl-dots[aria-expanded="true"] { background: var(--ad-st-tab); }
+.ad-bl-menu { min-width: 200px; }
+.ad-bl-menu svg { width: 18px; height: 18px; }
+.ad-bl-danger { color: var(--ad-red) !important; }
+.ad-bl-name { color: var(--ink); font-weight: 600; text-decoration: none; }
+.ad-bl-name:hover { color: var(--plum-ink); text-decoration: underline; }
+.ad-bl-note { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12.5px; }
+.ad-bl-remove { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+.ad-bl-remove:hover { background: var(--ad-st-red-bg); color: var(--ad-red); }
+.ad-bl-remove svg { width: 18px; height: 18px; }
+
+/* Modal + form */
+.ad-bl-modal { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+.ad-bl-icon-plum { background: var(--ad-st-tab) !important; color: var(--plum-ink) !important; }
+.ad-bl-form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.ad-bl-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ad-bl-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.ad-bl-label small { color: var(--muted); font-weight: 400; }
+.ad-bl-field input, .ad-bl-field select, .ad-bl-find input {
+  width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--ad-line); border-radius: 12px;
+  background: var(--s-ffffff); color: var(--ink); font: inherit; font-size: 15px;
+}
+.ad-bl-field input:focus, .ad-bl-field select:focus, .ad-bl-find input:focus { outline: none; border-color: var(--plum); box-shadow: 0 0 0 3px rgba(140, 29, 107, 0.12); }
+.ad-bl-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ad-bl-find { display: flex; flex-direction: column; gap: 6px; }
+.ad-bl-find ul { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--ad-line); border-radius: 12px; background: var(--s-ffffff); }
+.ad-bl-find li button {
+  display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 8px 10px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.ad-bl-find li button:hover, .ad-bl-find li button:focus-visible { background: var(--ad-st-tab); outline: none; }
+.ad-bl-find small, .ad-bl-chosen small { color: var(--muted); font-size: 13px; }
+.ad-bl-chosen { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--ad-st-tile); }
+.ad-bl-chosen > span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.ad-bl-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ad-bl-plans button, .ad-bl-days button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--ad-line);
+  border-radius: 14px; background: var(--s-ffffff); color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.ad-bl-plans small { color: var(--muted); font-size: 13px; }
+.ad-bl-plans button.active, .ad-bl-days button.active { border-color: var(--ad-st-ring-a); background: var(--ad-st-tile); box-shadow: 0 0 0 3px rgba(224, 66, 143, 0.12); }
+.ad-bl-days { display: flex; gap: 10px; margin-top: 16px; }
+.ad-bl-days button { align-items: center; flex: 1; font-weight: 700; }
+
+.ad-bl-toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 70; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px;
+  background: #1a0b2e; color: #fff; font-size: 15px; box-shadow: 0 12px 30px rgba(26, 11, 46, 0.3);
+}
+.ad-bl-toast svg { width: 18px; height: 18px; color: #6fe09a; }
+
+@media (max-width: 760px) {
+  .ad-bl-record { width: 100%; }
+  .ad-bl-tabs { width: 100%; }
+  .ad-bl-tabs button { flex: 1; justify-content: center; padding: 9px 8px; font-size: 14.5px; }
+  .ad-bl-two { grid-template-columns: minmax(0, 1fr); }
+  .ad-bl-modal { padding: 18px; }
+}

@@ -70,6 +70,23 @@ function Card({ icon, tone, title, sub, action, className = "", children }: {
   );
 }
 
+/** Monthly revenue as plain bars, with the amount written on each (no hover needed). */
+function RevenueBars({ months }: { months: Overview["revenue_per_month"] }) {
+  const most = Math.max(1, ...months.map((m) => m.amount_lkr));
+  if (!months.some((m) => m.amount_lkr)) return <p className="ad-muted ad-pad">No payments recorded in the last six months.</p>;
+  return (
+    <ul className="ad-rev" aria-label="Revenue per month">
+      {months.map((m) => (
+        <li key={m.month}>
+          <span className="ad-rev-amount">{m.amount_lkr ? num(m.amount_lkr) : "—"}</span>
+          <span className="ad-rev-track"><span style={{ height: `${(100 * m.amount_lkr) / most}%` }} /></span>
+          <span className="ad-rev-month">{new Date(`${m.month}-01T00:00:00`).toLocaleDateString("en-LK", { month: "short" })}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** A card whose data the platform does not record yet: says so, and what would fill it. */
 function NotTracked({ text }: { text: string }) {
   return (
@@ -148,7 +165,7 @@ export function AdminOverview() {
             link={{ to: "/admin/payments", label: "View subscriptions" }} />
           <Kpi icon={icons.crown} tone="amber" label="Paid subscribers" kpi={k?.paid_subscribers ?? null} days={days}
             link={{ to: "/admin/payments", label: "View subscriptions" }} />
-          <Kpi icon={icons.coins} tone="coral" label="Revenue (LKR)" kpi={null} days={days}
+          <Kpi icon={icons.coins} tone="coral" label="Revenue (LKR)" kpi={k?.revenue_lkr ?? null} days={days}
             link={{ to: "/admin/payments", label: "View payments" }} />
           <Kpi icon={icons.trendUp} tone="plum" label="Trial to paid" kpi={k?.trial_to_paid_pct ?? null} suffix="%" days={days}
             link={{ to: "/admin/payments", label: "View subscriptions" }} />
@@ -158,8 +175,8 @@ export function AdminOverview() {
           <Card icon={icons.users} tone="plum" title="Signups per day" sub="New student registrations in the selected range.">
             {data ? <SignupsChart data={data.signups_per_day} /> : <div className="ad-chart-placeholder" />}
           </Card>
-          <Card icon={icons.coins} tone="coral" title="Revenue per month" sub="Successful payments only.">
-            <NotTracked text="There is no payments table yet. Once payments are recorded, monthly revenue appears here." />
+          <Card icon={icons.coins} tone="coral" title="Revenue per month" sub="Payments recorded by admins, last six months.">
+            <RevenueBars months={data?.revenue_per_month ?? []} />
           </Card>
         </div>
 
@@ -205,8 +222,25 @@ export function AdminOverview() {
               </div>
             )}
           </Card>
-          <Card icon={icons.card} tone="coral" title="Latest payments">
-            <NotTracked text="No payments are recorded yet. Successful and failed payments will be listed here." />
+          <Card icon={icons.card} tone="coral" title="Latest payments"
+            action={<Link to="/admin/payments?tab=payments" className="ad-link">View all {icons.arrowRight}</Link>}>
+            {!data?.latest_payments.length ? <p className="ad-muted ad-pad">No payments recorded yet.</p> : (
+              <div className="ad-table-wrap">
+                <table className="ad-table">
+                  <thead><tr><th scope="col">Student</th><th scope="col">Plan</th><th scope="col" className="ad-num">Amount</th><th scope="col">Paid</th></tr></thead>
+                  <tbody>
+                    {data.latest_payments.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.full_name}</td>
+                        <td>{p.plan === "annual" ? "Annual" : "Monthly"}</td>
+                        <td className="ad-num">LKR {num(p.amount_lkr)}</td>
+                        <td className="ad-nowrap">{when(p.paid_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </div>
       </div>

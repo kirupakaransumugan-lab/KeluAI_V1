@@ -1,6 +1,6 @@
 """Numbers for the admin Overview page, from the users / student_profiles / subscriptions
-tables. Anything the database does not record yet (payments, revenue, AI usage, learning
-progress) is deliberately absent: the page shows it as "not tracked", never as a number.
+tables, plus payments admins record. Anything the database does not record yet (AI usage,
+learning progress) is deliberately absent: the page shows it as "not tracked", never as a number.
 
 Counting happens in Python over the student rows. That is fine for thousands of students;
 past that, move the counts into SQL GROUP BYs.
@@ -13,10 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.clock import utcnow
+from app.models.payment import Payment
 from app.models.user import Medium, Role, StudentProfile, Subscription, SubscriptionStatus, User
 
 PAID_PLANS = ("monthly", "annual")
 LATEST = 5
+REVENUE_MONTHS = 6
 
 
 def _students(db: Session, medium: Medium | None) -> list[User]:
@@ -86,6 +88,27 @@ def overview(db: Session, *, days: int, medium: Medium | None, now: datetime | N
             per_day[u.created_at.date()] += 1
 
     latest = sorted(students, key=lambda u: u.created_at, reverse=True)[:LATEST]
+
+    # Payments (recorded by admins), for the same students the filter picked.
+    by_id = {u.id: u for u in students}
+    month0 = today.replace(day=1)
+    for _ in range(REVENUE_MONTHS - 1):
+        month0 = (month0 - timedelta(days=1)).replace(day=1)
+    since = min(prev_start, datetime.combine(month0, datetime.min.time()))
+    payments = [p for p in db.scalars(select(Payment).where(Payment.paid_at >= since)
+                                      .order_by(Payment.paid_at.desc(), Payment.id.desc()))
+                if p.user_id in by_id]
+    months: dict[str, int] = {}
+    d = month0
+    while d <= today:
+        months[d.strftime("%Y-%m")] = 0
+        d = (d + timedelta(days=32)).replace(day=1)
+    for p in payments:
+        key = p.paid_at.strftime("%Y-%m")
+        if key in months:
+            months[key] += p.amount_lkr
+    revenue = sum(p.amount_lkr for p in payments if start < p.paid_at <= now)
+    revenue_before = sum(p.amount_lkr for p in payments if prev_start < p.paid_at <= start)
     return {
         "range": {"days": days, "medium": medium.value if medium else "all",
                   "from": start.isoformat(), "to": now.isoformat()},
@@ -94,6 +117,7 @@ def overview(db: Session, *, days: int, medium: Medium | None, now: datetime | N
             "new_signups": _kpi(joined(start, now), joined(prev_start, start)),
             "active_trials": _kpi(live(now, ("trial",)), live(start, ("trial",))),
             "paid_subscribers": _kpi(live(now, PAID_PLANS), live(start, PAID_PLANS)),
+            "revenue_lkr": _kpi(revenue, revenue_before),
             "trial_to_paid_pct": _kpi(_conversion(students, start, now), _conversion(students, prev_start, start)),
         },
         "signups_per_day": [{"date": d.isoformat(), "count": n} for d, n in sorted(per_day.items())],
@@ -102,4 +126,9 @@ def overview(db: Session, *, days: int, medium: Medium | None, now: datetime | N
             "medium": u.profile.medium.value if u.profile else None,
             "joined_at": u.created_at.isoformat(), "status": plan_state(u, now),
         } for u in latest],
+        "revenue_per_month": [{"month": m, "amount_lkr": v} for m, v in months.items()],
+        "latest_payments": [{
+            "id": p.id, "full_name": by_id[p.user_id].full_name, "plan": p.plan, "amount_lkr": p.amount_lkr,
+            "method": p.method, "paid_at": p.paid_at.isoformat(),
+        } for p in payments[:LATEST]],
     }
