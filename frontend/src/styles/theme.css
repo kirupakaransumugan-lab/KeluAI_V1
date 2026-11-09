@@ -1,0 +1,72 @@
+/* =====================================================================
+   Light / dark theme.
+   The theme follows the device setting unless the student picks one: ThemeProvider then sets
+   <html data-theme="light|dark">, and index.html sets it before first paint (no flash).
+   Hard-coded colours from the page stylesheets are tokens in theme-tokens.css (generated);
+   this file holds the brand-level ones they build on.
+   ===================================================================== */
+@import "./theme-tokens.css";
+
+:root {
+  --plum-ink: var(--plum);          /* plum used as TEXT: lifted in dark mode to stay readable */
+  /* SVG charts (Graph.tsx, SignupsChart.tsx) */
+  --graph-1: #8c1d6b;
+  --graph-2: #0f7b8a;
+  --graph-3: #c27c0e;
+  --graph-guide: #8a8296;
+  --graph-bg: #fff;
+  /* Full-page illustrations (hero, sign-up, pricing...) are light scenes: in dark mode they are
+     dimmed (filter) or veiled (overlay) so the light text on top of them stays readable. */
+  --art-filter: none;
+  --art-veil: transparent;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f4ecf5;
+    --muted: #bcb0c6;
+    --cream: #150e18;
+    --plum-soft: #4a2440;
+    --plum-ink: #f19ad3;
+    --graph-1: #ec8fcb;
+    --graph-2: #5cc8d6;
+    --graph-3: #f2b54a;
+    --graph-guide: #9d93aa;
+    --graph-bg: #1d1420;
+    --art-filter: brightness(0.42) saturate(0.85);
+    --art-veil: rgba(21, 14, 24, 0.8);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #f4ecf5;
+  --muted: #bcb0c6;
+  --cream: #150e18;
+  --plum-soft: #4a2440;
+  --plum-ink: #f19ad3;
+  --graph-1: #ec8fcb;
+  --graph-2: #5cc8d6;
+  --graph-3: #f2b54a;
+  --graph-guide: #9d93aa;
+  --graph-bg: #1d1420;
+  --art-filter: brightness(0.42) saturate(0.85);
+  --art-veil: rgba(21, 14, 24, 0.8);
+  color-scheme: dark;
+}
+
+/* Illustrations are drawn for a light page: soften them a touch so they don't glare. */
+:root[data-theme="dark"] img:not(.logo-img) { filter: brightness(0.92); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) img:not(.logo-img) { filter: brightness(0.92); }
+}
+
+/* Theme switch button (dashboard top bar and site navbar). */
+.theme-toggle {
+  display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 0;
+  border-radius: 12px; border: 1px solid var(--plum-soft); background: transparent; color: var(--plum-ink);
+}
+.theme-toggle:hover { background: var(--plum-soft); }
+.theme-toggle:focus-visible { outline: 2px solid var(--plum-ink); outline-offset: 2px; }
+.theme-toggle svg { width: 20px; height: 20px; }

@@ -4,7 +4,7 @@ const GLYPHS: [RegExp, string][] = [
   [/differential equation|வகையீட்டுச் சமன்பாடு/i, "dy⁄dx"],
   [/differentiat|derivative|stationary|வகையிட|வகையீ/i, "f′(x)"],
   [/integrat|தொகையிட|தொகையீ/i, "∫"],
-  [/vector|காவி/i, "a⃗"],
+  [/vector|காவி/i, "→"],
   [/complex|சிக்கல்/i, "ℂ"],
   [/probab|நிகழ்தகவு/i, "P(A)"],
   [/induction|தொகுத்தறி/i, "Σ"],

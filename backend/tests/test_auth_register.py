@@ -35,7 +35,8 @@ def test_register_creates_student_with_trial_and_sets_cookie(client):
     assert user["medium"] == "ta"
     trial_days = (datetime.fromisoformat(user["trial_ends_at"]) - datetime.now(timezone.utc).replace(tzinfo=None)).days
     assert trial_days in (13, 14)
-    assert "password" not in resp.text and "password_hash" not in resp.text
+    # Nothing secret comes back: not the password, not its hash (the has_password flag is fine).
+    assert payload()["password"] not in resp.text and "password_hash" not in resp.text and "$2b$" not in resp.text
 
     set_cookie = resp.headers["set-cookie"].lower()
     assert "kelu_access=" in set_cookie and "httponly" in set_cookie and "samesite=lax" in set_cookie

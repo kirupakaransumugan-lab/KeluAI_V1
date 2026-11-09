@@ -51,7 +51,7 @@ export type GooglePending = GoogleProfileRequired & { credential: string };
 /** Shared by the log-in and sign-up forms: turns a Google credential into a user (or a pending profile). */
 export function useGoogleSignIn(onUser: (user: User) => void) {
   const [pending, setPending] = useState<GooglePending>();
-  const [error, setError] = useState<"google" | "network">();
+  const [error, setError] = useState<"google" | "network" | "disabled">();
 
   async function onCredential(credential: string) {
     setError(undefined);
@@ -60,6 +60,8 @@ export function useGoogleSignIn(onUser: (user: User) => void) {
     } catch (err) {
       if (err instanceof ApiError && err.code === "profile_required") {
         setPending({ ...(err.detail as GoogleProfileRequired), credential });
+      } else if (err instanceof ApiError && err.code === "account_disabled") {
+        setError("disabled");
       } else {
         setError(err instanceof ApiError ? "google" : "network");
       }

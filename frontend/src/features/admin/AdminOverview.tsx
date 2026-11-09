@@ -1,0 +1,227 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { icons } from "../dashboard/icons";
+import {
+  ApiError, adminApi, type AdminKpi, type AdminOverview as Overview, type MediumFilter, type OverviewDays,
+} from "../../services/api";
+import { SignupsChart } from "./SignupsChart";
+
+// Admin Overview. Real numbers come from GET /admin/overview (users, profiles, subscriptions).
+// Payments, revenue, AI usage and learning progress are not recorded anywhere yet, so their
+// cards say "not tracked yet" and what would fill them - never a made-up number.
+
+const RANGES: { days: OverviewDays; label: string }[] = [
+  { days: 7, label: "Last 7 days" }, { days: 30, label: "Last 30 days" }, { days: 90, label: "Last 90 days" },
+];
+const MEDIUMS: { value: MediumFilter; label: string }[] = [
+  { value: "all", label: "All mediums" }, { value: "en", label: "English medium" }, { value: "ta", label: "Tamil medium" },
+];
+const STATUS: Record<Overview["latest_signups"][number]["status"], string> = {
+  trial: "In trial", paid: "Paid", expired: "Trial ended", cancelled: "Cancelled",
+};
+
+const num = (v: number) => v.toLocaleString("en-LK");
+const when = (iso: string) => new Date(iso).toLocaleString("en-LK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+function Kpi({ icon, tone, label, kpi, suffix = "", days, link }: {
+  icon: ReactNode; tone: string; label: string; kpi: AdminKpi | null; suffix?: string; days: number;
+  link: { to: string; label: string };
+}) {
+  const ch = kpi?.change_pct ?? null;
+  return (
+    <article className="ad-kpi">
+      <div className="ad-kpi-top">
+        <span className={`ad-badge ${tone}`}>{icon}</span>
+        <div>
+          <h3>{label}</h3>
+          <strong className="ad-kpi-value">{kpi?.value == null ? "—" : `${num(kpi.value)}${suffix}`}</strong>
+        </div>
+      </div>
+      <p className="ad-kpi-change">
+        {kpi == null ? <span className="ad-muted">Not tracked yet</span>
+          : ch == null ? <span className="ad-muted">No earlier data to compare</span>
+          : (
+            <>
+              <span className={ch >= 0 ? "ad-up" : "ad-down"}>{ch >= 0 ? icons.arrowUp : icons.arrowDown}{Math.abs(ch)}%</span>
+              <span className="ad-muted">vs previous {days} days</span>
+            </>
+          )}
+      </p>
+      <Link to={link.to} className="ad-link">{link.label} {icons.arrowRight}</Link>
+    </article>
+  );
+}
+
+function Card({ icon, tone, title, sub, action, className = "", children }: {
+  icon: ReactNode; tone: string; title: string; sub?: string; action?: ReactNode; className?: string; children: ReactNode;
+}) {
+  return (
+    <section className={`ad-card ${className}`}>
+      <header className="ad-card-head">
+        <span className={`ad-badge ${tone}`}>{icon}</span>
+        <div className="ad-card-title">
+          <h2>{title}</h2>
+          {sub && <p>{sub}</p>}
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/** A card whose data the platform does not record yet: says so, and what would fill it. */
+function NotTracked({ text }: { text: string }) {
+  return (
+    <div className="ad-untracked">
+      <span className="ad-untracked-tag">Not tracked yet</span>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+export function AdminOverview() {
+  const navigate = useNavigate();
+  const [days, setDays] = useState<OverviewDays>(30);
+  const [medium, setMedium] = useState<MediumFilter>("all");
+  const [data, setData] = useState<Overview>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    adminApi.overview(days, medium).then((d) => {
+      if (!live) return;
+      setData(d);
+      setError(false);
+    }, (err) => {
+      if (!live) return;
+      if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });
+      else if (err instanceof ApiError && err.status === 403) navigate("/dashboard", { replace: true });
+      else setError(true);
+    }).finally(() => live && setLoading(false));
+    return () => { live = false; };            // a slower, older request must not overwrite a newer one
+  }, [days, medium, navigate]);
+
+  const k = data?.kpis;
+  return (
+    <main className="db-content ad-page">
+      <header className="ad-head">
+        <div>
+          <h1>Overview</h1>
+          <p>Key metrics and platform activity at a glance.</p>
+        </div>
+        {/* One filter row scopes every number on the page, so they always agree. */}
+        <div className="ad-filters" role="group" aria-label="Filters">
+          <label className="ad-select">
+            {icons.calendar}
+            <select value={days} onChange={(e) => setDays(Number(e.target.value) as OverviewDays)} aria-label="Date range">
+              {RANGES.map((r) => <option key={r.days} value={r.days}>{r.label}</option>)}
+            </select>
+            {icons.chevronDown}
+          </label>
+          <label className="ad-select">
+            {icons.globe}
+            <select value={medium} onChange={(e) => setMedium(e.target.value as MediumFilter)} aria-label="Study medium">
+              {MEDIUMS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+            {icons.chevronDown}
+          </label>
+        </div>
+      </header>
+
+      {error && !data && (
+        <section className="ad-card ad-error" role="alert">
+          Couldn't load the overview. Check that the backend is running, then reload.
+        </section>
+      )}
+
+      {/* While a new range loads, the old numbers stay, faded (no skeleton, no layout jump). */}
+      <div className={`ad-body${loading && data ? " ad-stale" : ""}`} aria-busy={loading}>
+        <div className="ad-kpis">
+          <Kpi icon={icons.users} tone="plum" label="Total students" kpi={k?.total_students ?? null} days={days}
+            link={{ to: "/admin/students", label: "View students" }} />
+          <Kpi icon={icons.userPlus} tone="plum" label="New signups" kpi={k?.new_signups ?? null} days={days}
+            link={{ to: "/admin/students", label: "View students" }} />
+          <Kpi icon={icons.clock} tone="amber" label="Active trials" kpi={k?.active_trials ?? null} days={days}
+            link={{ to: "/admin/payments", label: "View subscriptions" }} />
+          <Kpi icon={icons.crown} tone="amber" label="Paid subscribers" kpi={k?.paid_subscribers ?? null} days={days}
+            link={{ to: "/admin/payments", label: "View subscriptions" }} />
+          <Kpi icon={icons.coins} tone="coral" label="Revenue (LKR)" kpi={null} days={days}
+            link={{ to: "/admin/payments", label: "View payments" }} />
+          <Kpi icon={icons.trendUp} tone="plum" label="Trial to paid" kpi={k?.trial_to_paid_pct ?? null} suffix="%" days={days}
+            link={{ to: "/admin/payments", label: "View subscriptions" }} />
+        </div>
+
+        <div className="ad-row">
+          <Card icon={icons.users} tone="plum" title="Signups per day" sub="New student registrations in the selected range.">
+            {data ? <SignupsChart data={data.signups_per_day} /> : <div className="ad-chart-placeholder" />}
+          </Card>
+          <Card icon={icons.coins} tone="coral" title="Revenue per month" sub="Successful payments only.">
+            <NotTracked text="There is no payments table yet. Once payments are recorded, monthly revenue appears here." />
+          </Card>
+        </div>
+
+        <div className="ad-row ad-row-wide">
+          <Card icon={icons.bars} tone="amber" title="Learning health" sub="How students are learning on the platform.">
+            <NotTracked text="Practice and tutor progress is kept in each student's browser, so the server can't count active students, daily goals or diagnostics yet." />
+          </Card>
+          <Card icon={icons.book} tone="plum" title="Weakest topics" sub="Platform-wide.">
+            <NotTracked text="Needs practice results saved on the server (a practice_attempts table)." />
+          </Card>
+        </div>
+
+        <div className="ad-row">
+          <Card icon={icons.alert} tone="coral" title="Needs attention" sub="Items that require admin action, newest first.">
+            <NotTracked text="Pending or failed payments, failed knowledge-base uploads and questions reported by students will be listed here once they are recorded." />
+          </Card>
+          <Card icon={icons.cpu} tone="plum" title="AI usage" sub="AI and OCR usage, to keep an eye on cost.">
+            <NotTracked text="AI calls are not logged yet. Logging tokens per request would fill tokens today and this month." />
+          </Card>
+        </div>
+
+        <div className="ad-row ad-row-wide">
+          <Card icon={icons.users} tone="plum" title="Latest student signups"
+            action={<Link to="/admin/students" className="ad-link">View all {icons.arrowRight}</Link>}>
+            {data && data.latest_signups.length === 0 ? <p className="ad-muted ad-pad">No students yet.</p> : (
+              <div className="ad-table-wrap">
+                <table className="ad-table">
+                  <thead>
+                    <tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Medium</th><th scope="col">Joined</th><th scope="col">Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {data?.latest_signups.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.full_name}</td>
+                        <td className="ad-email">{s.email}</td>
+                        <td>{s.medium === "ta" ? "Tamil" : s.medium === "en" ? "English" : "—"}</td>
+                        <td className="ad-nowrap">{when(s.joined_at)}</td>
+                        <td><span className={`ad-pill ${s.status}`}>{STATUS[s.status]}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+          <Card icon={icons.card} tone="coral" title="Latest payments">
+            <NotTracked text="No payments are recorded yet. Successful and failed payments will be listed here." />
+          </Card>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function AdminComingSoon() {
+  return (
+    <main className="db-content ad-page">
+      <section className="ad-card ad-soon">
+        <h1>Coming soon</h1>
+        <p>This admin section isn't built yet. The Overview has the numbers available today.</p>
+        <Link to="/admin" className="ad-link">Back to overview {icons.arrowRight}</Link>
+      </section>
+    </main>
+  );
+}

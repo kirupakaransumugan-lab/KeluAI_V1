@@ -12,7 +12,9 @@ from typing import Any, Protocol
 from ..retrieval import Retriever
 from ..types import AccessScope, TutorMode
 from .openrouter_llm import OPENROUTER_URL, OpenRouterLLM
-from .prompts import PAPERS_ONLY, PREFETCH, system_prompt
+from ..images import Image
+from ..tamil_text import tamil_reply_problems
+from .prompts import IMAGE_NOTE, PAPERS_ONLY, PREFETCH, TAMIL_REPAIR, system_prompt
 from .tools import ToolContext, run_tool, tool_definitions
 
 EXAM_LOCKED_REPLY = {
@@ -39,7 +41,8 @@ class AgentResult:
 
 class TutorAgent:
     def __init__(self, llm: LLMClient, retriever: Retriever, model: str,
-                 max_rounds: int = 4, max_tokens: int = 1200, search_first: bool = False):
+                 max_rounds: int = 4, max_tokens: int = 1200, search_first: bool = False,
+                 vision_model: str | None = None, tamil_model: str | None = None):
         """search_first: always search the knowledge base with the student's
         message before the model runs, and restrict answers to what was found.
         Does not rely on the model choosing to call a tool (small models skip it)."""
@@ -47,15 +50,19 @@ class TutorAgent:
         self.llm = llm
         self.retriever = retriever
         self.model = model
+        self.vision_model = vision_model or model
+        self.tamil_model = tamil_model or model
         self.max_rounds = max_rounds
         self.max_tokens = max_tokens
 
     def reply(self, *, scope: AccessScope, mode: TutorMode, language: str,
               history: list[dict], hint_level: int = 0,
-              bound_upload_id: int | None = None, context_note: str | None = None) -> AgentResult:
+              bound_upload_id: int | None = None, context_note: str | None = None,
+              image: Image | None = None) -> AgentResult:
         """`history` = prior turns as [{"role": "user"|"assistant", "content": str}],
         ending with the student's new message. Load it from tutor_messages
-        (last ~20 turns) so conversations are resumable."""
+        (last ~20 turns) so conversations are resumable.
+        `image`: attached to that new message only, and answered by the vision model."""
         if mode == TutorMode.EXAM:
             return AgentResult(EXAM_LOCKED_REPLY.get(language, EXAM_LOCKED_REPLY["en"]),
                                [], self.model, 0, hint_level)
@@ -75,9 +82,16 @@ class TutorAgent:
             last["content"] += PREFETCH.format(results=found)
             system += "\n\n" + PAPERS_ONLY
 
+        model = self.tamil_model if language == "ta" else self.model
+        if image and last and last["role"] == "user" and isinstance(last["content"], str):
+            last["content"] = [{"type": "text", "text": last["content"]},
+                               {"type": "image", "media_type": image.media_type, "data": image.data}]
+            system += "\n\n" + IMAGE_NOTE
+            model = self.vision_model
+
         for round_no in range(self.max_rounds + 1):
             final_round = round_no == self.max_rounds
-            kwargs: dict[str, Any] = dict(model=self.model, max_tokens=self.max_tokens,
+            kwargs: dict[str, Any] = dict(model=model, max_tokens=self.max_tokens,
                                           system=system, messages=messages)
             if not final_round:
                 kwargs["tools"] = tools          # last round: force a text answer
@@ -91,10 +105,13 @@ class TutorAgent:
 
             if resp.stop_reason != "tool_use" or not tool_uses:
                 text = "".join(getattr(b, "text", "") for b in blocks if getattr(b, "type", None) == "text").strip()
+                if language == "ta" and text:
+                    text, used = self._repair_tamil(text, model)
+                    tokens += used
                 return AgentResult(
                     content=text or self._fallback(language),
                     sources=self._cited_sources(ctx, text),
-                    model_name=self.model, tokens_used=tokens,
+                    model_name=model, tokens_used=tokens,
                     hint_level=hint_level, tool_calls=calls,
                     truncated=resp.stop_reason == "max_tokens",
                 )
@@ -107,7 +124,25 @@ class TutorAgent:
                 results.append({"type": "tool_result", "tool_use_id": tu.id, "content": out})
             messages.append({"role": "user", "content": results})
 
-        return AgentResult(self._fallback(language), [], self.model, tokens, hint_level, calls)
+        return AgentResult(self._fallback(language), [], model, tokens, hint_level, calls)
+
+    def _repair_tamil(self, text: str, model: str) -> tuple[str, int]:
+        """A Tamil reply with foreign words or broken letters is rewritten once, in clear Tamil.
+        The rewrite is kept only if it has fewer problems; any failure keeps the original."""
+        problems = tamil_reply_problems(text)
+        if not problems:
+            return text, 0
+        try:
+            resp = self.llm.create(model=model, max_tokens=self.max_tokens, system=TAMIL_REPAIR,
+                                   messages=[{"role": "user", "content": text}])
+        except Exception:
+            return text, 0
+        usage = getattr(resp, "usage", None)
+        used = ((getattr(usage, "input_tokens", 0) or 0) + (getattr(usage, "output_tokens", 0) or 0)) if usage else 0
+        fixed = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text").strip()
+        if fixed and len(tamil_reply_problems(fixed)) < len(problems):
+            return fixed, used
+        return text, used
 
     @staticmethod
     def _fallback(language: str) -> str:
@@ -137,8 +172,8 @@ class LLMNotConfigured(RuntimeError):
     pass
 
 
-def build_llm(api_key: str | None, base_url: str = OPENROUTER_URL) -> OpenRouterLLM:
+def build_llm(api_key: str | None, base_url: str = OPENROUTER_URL, temperature: float | None = None) -> OpenRouterLLM:
     """Every KELU model call goes through OpenRouter."""
     if not api_key:
         raise LLMNotConfigured("LLM_API_KEY is not configured in backend/.env")
-    return OpenRouterLLM(api_key, base_url)
+    return OpenRouterLLM(api_key, base_url, temperature=temperature)

@@ -1,0 +1,151 @@
+/* =====================================================================
+   Past papers: library and reader. Classes are prefixed pp-; the hero,
+   tabs and cards reuse pr- from practice.css and the --db-* tokens.
+   ===================================================================== */
+
+/* ---------- Hero ---------- */
+.pp-hero-icon { display: grid; place-items: center; flex: none; color: var(--plum-ink); }
+.pp-hero-icon svg { width: 74px; height: 74px; stroke-width: 1.7; }
+.pp-hero-art { right: 24px; bottom: -14px; width: 340px; }
+
+.pp-tab-soon:disabled { color: var(--muted); cursor: not-allowed; background: transparent; }
+.pp-soon { padding: 2px 9px; border-radius: 999px; background: var(--s-fbe6f0); color: var(--plum-ink); font-size: 12px; font-weight: 600; }
+
+/* ---------- Layout ---------- */
+.pp-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.pp-grid-wide { grid-template-columns: minmax(0, 1fr) 280px; }
+.pp-years, .pp-side-card { padding: 20px 18px; }
+.pp-detail { padding: 22px 22px 20px; }
+.pp-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* ---------- Year list ---------- */
+.pp-year-list { display: flex; flex-direction: column; gap: 10px; }
+.pp-year {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 0 14px;
+  border: 1px solid var(--s-f3e6ec); border-radius: 14px; background: var(--s-fffbfc); color: var(--ink);
+}
+.pp-year strong { flex: 1; text-align: left; font-size: 16.5px; font-weight: 700; }
+.pp-year > svg:first-child { color: var(--plum-ink); }
+.pp-year:hover { border-color: var(--s-ecc4d8); }
+.pp-year.active { background: var(--s-fbe6f0); border-color: var(--s-f2c4dc); box-shadow: 0 4px 14px rgba(140, 29, 107, 0.08); }
+
+/* ---------- Year detail ---------- */
+.pp-detail-title { margin-bottom: 12px; }
+.pp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-chips span {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px;
+  border-radius: 999px; background: var(--s-ffffff); border: 1px solid var(--s-f3e6ec); font-size: 14px; font-weight: 500;
+}
+.pp-chips svg { width: 17px; height: 17px; }
+
+.pp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 14px; margin-top: 18px; }
+.pp-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 14px 16px;
+  border: 1px solid var(--s-f7dbe8); border-radius: 18px; background: linear-gradient(180deg, var(--s-fdeef5), var(--s-fff7fa));
+  text-align: center;
+}
+.pp-card-amber { border-color: var(--s-fbe6c6); background: linear-gradient(180deg, var(--s-fdf1dc), var(--s-fffaf1)); }
+.pp-card-plain { background: var(--s-fffbfc); }
+.pp-card-icon { display: inline-flex; color: var(--plum-ink); }
+.pp-card-amber .pp-card-icon { color: var(--t-e8862a); }
+.pp-card-icon svg { width: 38px; height: 38px; stroke-width: 1.7; }
+.pp-card h3 { margin: 2px 0 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 21px; font-weight: 700; }
+.pp-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.pp-kind { padding: 2px 10px; border-radius: 999px; background: var(--s-ffffffcc); color: var(--plum-ink); font-size: 12px; font-weight: 600; }
+.pp-card .pp-read {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; align-self: stretch;
+  min-height: 44px; margin-top: auto; padding: 0 14px; border-radius: 14px; font-size: 15.5px; font-weight: 600;
+}
+.pp-card p { margin-bottom: 8px; }
+.pp-card .pp-kind + .pp-read { margin-top: auto; }
+.pp-kind { margin-bottom: 10px; }
+
+.pp-note {
+  margin: 16px 0 0; padding: 11px 14px; border-radius: 12px; background: var(--s-fff6e8);
+  color: var(--t-7a4c0b); font-size: 14px; line-height: 1.45;
+}
+.pp-note-top { margin: 0 0 16px; }
+
+/* ---------- Marking schemes tab ---------- */
+.pp-scheme-list { display: flex; flex-direction: column; gap: 10px; }
+.pp-scheme {
+  display: flex; align-items: center; gap: 16px; min-height: 60px; padding: 8px 16px;
+  border: 1px solid var(--s-f3e6ec); border-radius: 14px; background: var(--s-fffbfc); color: var(--ink);
+}
+.pp-scheme:hover { border-color: var(--s-ecc4d8); }
+.pp-scheme strong { font-size: 18px; font-weight: 700; }
+.pp-scheme span { flex: 1; min-width: 0; color: var(--muted); font-size: 14.5px; }
+.pp-scheme svg { flex: none; }
+
+/* ---------- Side cards ---------- */
+.pp-stats { display: flex; flex-direction: column; margin: 0; }
+.pp-stats div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--s-f7ecf1); }
+.pp-stats div:last-child { border-bottom: 0; }
+.pp-stats dt { color: var(--muted); font-size: 14.5px; }
+.pp-stats dd { margin: 0; font-size: 19px; font-weight: 700; color: var(--plum-ink); }
+.pp-actions { display: flex; flex-direction: column; gap: 10px; }
+.pp-action {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0 14px;
+  border: 0; border-radius: 14px; background: var(--s-fdeef5); color: var(--ink); font-size: 15px; font-weight: 600; text-align: left;
+}
+.pp-action span { flex: 1; min-width: 0; }
+.pp-action svg { flex: none; }
+.pp-action > svg:first-child { color: var(--plum-ink); }
+.pp-action:hover { background: var(--s-fbe0ec); }
+
+.pp-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 24px; text-align: center; }
+.pp-state h2 { margin: 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 24px; }
+.pp-state p { margin: 0; color: var(--muted); }
+
+/* ---------- Reader ---------- */
+.pp-anchor { scroll-margin-top: 16px; height: 0; }
+.pp-back { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; color: var(--plum-ink); font-weight: 600; }
+.pp-reader-head h1 { margin: 0 0 10px; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: clamp(26px, 2.6vw, 36px); font-weight: 800; line-height: 1.1; }
+.pp-reader { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 18px; align-items: start; }
+.pp-nav {
+  position: sticky; top: 16px; display: flex; flex-direction: column; gap: 4px;
+  max-height: calc(100vh - 32px); padding: 18px 14px; overflow-y: auto;
+}
+.pp-nav-link {
+  display: block; width: 100%; min-height: 42px; padding: 0 12px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--ink); font-size: 15.5px; font-weight: 600; text-align: left;
+}
+.pp-nav-link:hover { background: var(--s-fdf3f8); }
+.pp-nav-link.active { background: var(--s-fbe6f0); color: var(--plum-ink); }
+.pp-nav-sub { min-height: 34px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.pp-nav-part { padding-left: 8px; }
+.pp-nav-questions { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 12px 8px; }
+.pp-q {
+  width: 34px; height: 34px; padding: 0; border: 1px solid var(--s-f3e6ec); border-radius: 10px;
+  background: var(--s-fffbfc); color: var(--ink); font-size: 13.5px; font-weight: 600;
+}
+.pp-q:hover { border-color: var(--s-ecc4d8); }
+.pp-q.active { background: var(--plum); border-color: var(--plum); color: #fff; }
+.pp-text { padding: 22px 26px; min-width: 0; }
+.pp-chunk { padding: 14px 0; border-top: 1px solid var(--s-f7ecf1); white-space: pre-line; overflow-wrap: anywhere; line-height: 1.6; font-size: 15.5px; }
+.pp-chunk:first-of-type { border-top: 0; padding-top: 0; }
+.pp-chunk h3 { margin: 0 0 8px; color: var(--plum-ink); font-size: 13.5px; font-weight: 700; }
+.pp-chunk p { margin: 0 0 8px; }
+
+/* ---------- Smaller screens ---------- */
+@media (max-width: 1180px) {
+  .pp-grid { grid-template-columns: 220px minmax(0, 1fr); }
+  .pp-grid-wide { grid-template-columns: minmax(0, 1fr); }
+  .pp-side { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+  .pp-hero-art { width: 280px; }
+}
+@media (max-width: 900px) {
+  .pp-grid, .pp-reader { grid-template-columns: minmax(0, 1fr); }
+  .pp-year-list { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .pp-year { flex: none; width: auto; }
+  .pp-year > svg { display: none; }
+  .pp-nav { position: static; max-height: none; }
+  .pp-side { grid-template-columns: minmax(0, 1fr); }
+  .pp-hero { padding-right: 12px; }
+  .pp-hero-art { display: none; }
+}
+@media (max-width: 600px) {
+  .pp-hero-icon svg { width: 54px; height: 54px; }
+  .pp-detail, .pp-text { padding: 18px 16px; }
+  .pp-tab-soon { display: none; }
+}

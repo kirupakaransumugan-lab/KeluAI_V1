@@ -1,5 +1,6 @@
-// Tutor chats live in this browser (localStorage, per user) until the backend has a
-// tutor_conversations table. Every read/write is guarded: private windows can throw.
+// Tutor chats are kept on the server (tutor_conversations, see useChatSync.ts); this browser
+// copy (localStorage, per user) is a cache so the page opens instantly and works offline.
+// Every read/write is guarded: private windows can throw.
 import type { TutorSource } from "../../services/api";
 
 export interface Message {
@@ -10,6 +11,7 @@ export interface Message {
   sources?: TutorSource[];
   hintLevel?: number;         // assistant replies: the level the reply was written at
   error?: string;             // assistant placeholder for a failed reply: the error code
+  image?: string;             // user message: thumbnail of an attached photo (the full image isn't kept)
 }
 
 export interface Conversation {

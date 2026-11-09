@@ -94,6 +94,10 @@ class UserOut(BaseModel):
     medium: Medium | None  # None for admins, who have no student profile
     al_exam_year: int | None
     trial_ends_at: datetime | None
+    # For the settings page
+    mobile: str
+    parent_email: str | None
+    has_password: bool             # False: a Google-only account, which can set a first password
 
 
 class LoginRequest(BaseModel):
@@ -134,6 +138,56 @@ class VerifyResetCodeRequest(BaseModel):
 
 class VerifyResetCodeResponse(BaseModel):
     reset_token: str
+
+
+class UpdateProfileRequest(BaseModel):
+    """Settings > Profile. Only the fields sent are changed."""
+
+    full_name: str | None = Field(None, min_length=2, max_length=120)
+    mobile: str | None = None
+    medium: Medium | None = None
+    al_exam_year: int | None = None
+    parent_email: EmailStr | None = None
+    clear_parent_email: bool = False
+
+    @field_validator("full_name")
+    @classmethod
+    def _strip_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = " ".join(v.split())
+        if len(v) < 2:
+            raise ValueError("name_too_short")
+        return v
+
+    @field_validator("mobile")
+    @classmethod
+    def _mobile(cls, v: str | None) -> str | None:
+        return None if v is None else normalize_sl_mobile(v)
+
+    @field_validator("al_exam_year")
+    @classmethod
+    def _exam_year(cls, v: int | None) -> int | None:
+        if v is not None and v not in allowed_exam_years():
+            raise ValueError("invalid_exam_year")
+        return v
+
+    @field_validator("parent_email")
+    @classmethod
+    def _lower_parent(cls, v: str | None) -> str | None:
+        return None if v is None else v.lower()
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str | None = Field(None, max_length=256)    # required unless no password is set yet
+    new_password: str = Field(min_length=8)
+
+    _password_bytes = field_validator("new_password")(_check_password_bytes)
+
+
+class DeleteAccountRequest(BaseModel):
+    confirm_email: str = Field(max_length=254)          # typed by the student, must match the account
+    password: str | None = Field(None, max_length=256)  # required when the account has one
 
 
 class ResetPasswordRequest(BaseModel):

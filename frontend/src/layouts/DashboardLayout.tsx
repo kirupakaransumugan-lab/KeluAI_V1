@@ -5,18 +5,20 @@ import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { icons } from "../features/dashboard/icons";
 import { ApiError, authApi, type User } from "../services/api";
 import "../styles/dashboard.css";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export interface DashboardContext {
   user: User;
+  setUser: (user: User) => void;     // after Settings saves, so the top bar and greeting update
 }
 
-const NAV: { to: string; key: "home" | "practice" | "tutor" | "pastPapers" | "progress" | "saved"; icon: ReactNode }[] = [
+// Saved questions live in a tab of Practice, so they have no sidebar entry of their own.
+const NAV: { to: string; key: "home" | "practice" | "tutor" | "pastPapers" | "progress"; icon: ReactNode }[] = [
   { to: "/dashboard", key: "home", icon: icons.home },
   { to: "/dashboard/practice", key: "practice", icon: icons.pencil },
   { to: "/dashboard/tutor", key: "tutor", icon: icons.chat },
   { to: "/dashboard/past-papers", key: "pastPapers", icon: icons.paper },
   { to: "/dashboard/progress", key: "progress", icon: icons.chart },
-  { to: "/dashboard/saved", key: "saved", icon: icons.bookmark },
 ];
 
 const ACCOUNT_NAV = [
@@ -38,7 +40,11 @@ export function DashboardLayout() {
   const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    authApi.me().then(setUser, (err) => {
+    authApi.me().then((u) => {
+      // Admins have no student profile; their home is the admin area.
+      if (u.role === "admin") navigate("/admin", { replace: true });
+      else setUser(u);
+    }, (err) => {
       if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });
     });
   }, [navigate]);
@@ -110,6 +116,7 @@ export function DashboardLayout() {
           </button>
           <div className="db-topbar-actions">
             <button className="db-icon-btn" type="button" aria-label={d.nav.search}>{icons.search}</button>
+            <ThemeToggle />
             <div className="db-lang" role="group" aria-label={t.nav.language}>
               <button type="button" className={lang === "ta" ? "active" : ""} aria-pressed={lang === "ta"}
                 onClick={() => setLang("ta")}>தமிழ்</button>
@@ -145,7 +152,7 @@ export function DashboardLayout() {
             </section>
           </main>
         )}>
-          <Outlet context={{ user } satisfies DashboardContext} />
+          <Outlet context={{ user, setUser } satisfies DashboardContext} />
         </ErrorBoundary>
       </div>
     </div>

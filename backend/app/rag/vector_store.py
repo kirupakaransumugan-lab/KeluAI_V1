@@ -8,7 +8,7 @@ Payload on every point (what lets every search be filtered):
 from __future__ import annotations
 
 import uuid
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from qdrant_client import QdrantClient
 from qdrant_client import models as qm
@@ -19,7 +19,7 @@ from .types import Chunk, SearchHit, UploadRecord
 _NS = uuid.UUID("6b0f4a52-8a7e-4c1e-9d1a-4b454c550001")
 
 _KEYWORD_FIELDS = ("visibility", "upload_type", "language", "paper", "paper_part", "question_number")
-_INT_FIELDS = ("upload_id", "owner_user_id", "exam_year")
+_INT_FIELDS = ("upload_id", "owner_user_id", "exam_year", "topic_ids")
 
 
 def point_id(upload_id: int, chunk_index: int) -> str:
@@ -92,6 +92,17 @@ class VectorStore:
         for i in range(0, len(points), batch_size):
             self.client.upsert(self.collection, points=points[i:i + batch_size], wait=True)
 
+    def clear_topic_ids(self, flt: qm.Filter) -> None:
+        self.client.set_payload(self.collection, payload={"topic_ids": []}, points=flt, wait=True)
+
+    def set_topic_ids(self, topics_of: dict[str, list[int]]) -> None:
+        """{point id: topic ids}. Points with the same topics are written in one call."""
+        groups: dict[tuple[int, ...], list[str]] = {}
+        for point, ids in topics_of.items():
+            groups.setdefault(tuple(sorted(ids)), []).append(point)
+        for ids, points in groups.items():
+            self.client.set_payload(self.collection, payload={"topic_ids": list(ids)}, points=points, wait=True)
+
     def delete_upload(self, upload_id: int) -> None:
         self.client.delete(
             self.collection,
@@ -117,11 +128,32 @@ class VectorStore:
         )
         return [_to_hit(p.payload or {}, p.score) for p in res.points]
 
+    def search_ids(self, vector: list[float], flt: qm.Filter, limit: int, min_score: float = 0.0) -> list[str]:
+        res = self.client.query_points(self.collection, query=vector, query_filter=flt, limit=limit,
+                                       with_payload=False, score_threshold=min_score or None)
+        return [str(p.id) for p in res.points]
+
     def scroll(self, flt: qm.Filter, limit: int = 20) -> list[SearchHit]:
         """Exact (non-semantic) lookup, e.g. a specific past-paper question."""
         points, _ = self.client.scroll(self.collection, scroll_filter=flt, limit=limit, with_payload=True)
         hits = [_to_hit(p.payload or {}, 1.0) for p in points]
         return sorted(hits, key=lambda h: (h.upload_id, h.page or 0))
+
+    def scroll_payloads(self, flt: qm.Filter, fields: list[str] | None = None,
+                        page_size: int = 1000) -> Iterator[dict]:
+        """Every matching point's payload, across pages. `fields` limits what is fetched
+        (default all). A collection that doesn't exist yet simply has no points."""
+        if not self.client.collection_exists(self.collection):
+            return
+        offset = None
+        while True:
+            points, offset = self.client.scroll(self.collection, scroll_filter=flt, limit=page_size, offset=offset,
+                                                with_payload=fields if fields is not None else True,
+                                                with_vectors=False)
+            for p in points:
+                yield p.payload or {}
+            if offset is None:
+                return
 
     def count_for_upload(self, upload_id: int) -> int:
         return self.client.count(self.collection, count_filter=qm.Filter(must=[

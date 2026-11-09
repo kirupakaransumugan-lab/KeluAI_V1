@@ -52,6 +52,14 @@ class Retriever:
         vec = self.embedder.embed_query(query)
         return self.store.search(vec, flt, limit=min(limit or self.top_k, 12), min_score=self.min_score)
 
+    def by_topic(self, scope: AccessScope, topic_id: int, *, upload_types: list[str], limit: int = 50) -> list[SearchHit]:
+        """Chunks tagged with this topic in Qdrant (`topic_ids`). No embedding, so it's instant."""
+        narrow: list[qm.Condition] = [
+            qm.FieldCondition(key="topic_ids", match=qm.MatchValue(value=topic_id)),
+            qm.FieldCondition(key="upload_type", match=qm.MatchAny(any=upload_types)),
+        ]
+        return self.store.scroll(scope_filter(scope, narrow=narrow), limit=limit)
+
     def get_question(self, scope: AccessScope, *, exam_year: int, question_number: str,
                      paper: str | None = None, paper_part: str | None = None,
                      upload_type: str = "past_paper",

@@ -1,12 +1,13 @@
 """Quiz generator tests: in-memory Qdrant + scripted LLM, no network."""
 import random
+import threading
 from types import SimpleNamespace as NS
 
 import pytest
 
 from app.rag.embeddings import FakeEmbedder
 from app.rag.ingestion import index_upload
-from app.rag.quiz import NoQuestionsIndexed, QuizGenerator, is_too_close, parse_quiz, pick_examples
+from app.rag.quiz import NoQuestionsIndexed, QuizGenerator, QuizIncomplete, is_too_close, parse_quiz, pick_examples
 from app.rag.retrieval import Retriever
 from app.rag.types import AccessScope, UploadRecord
 from app.rag.vector_store import VectorStore
@@ -23,19 +24,40 @@ STUDENT = AccessScope(10)
 
 
 class ScriptedLLM:
-    def __init__(self, text):
-        self.text = text
+    """Answers call n with texts[n]; the last text repeats. Calls run in threads, hence the lock."""
+    def __init__(self, *texts):
+        self.texts = list(texts) or [""]
         self.calls = []
+        self.lock = threading.Lock()
 
     def create(self, **kw):
-        self.calls.append(kw)
-        return NS(content=[NS(type="text", text=self.text)], stop_reason="end_turn",
+        with self.lock:
+            self.calls.append(kw)
+            text = self.texts[min(len(self.calls), len(self.texts)) - 1]
+        return NS(content=[NS(type="text", text=text)], stop_reason="end_turn",
                   usage=NS(input_tokens=100, output_tokens=50))
 
 
-def _reply(*questions):
-    return "\n\n".join(f"=== Q{i}\nTOPIC: t{i}\nQUESTION:\n{q}\nANSWER:\n$x = {i}$"
+STEPS = "\n".join(f"STEP {n}: step {n}\nRIGHT: $r{n}$\nWHY: ok\nWRONG: $w{n}$\nWHY: slip" for n in (1, 2, 3))
+
+
+def _reply(*questions, steps=True):
+    return "\n\n".join(f"=== Q{i}\nTOPIC: t{i}\nQUESTION:\n{q}\n{STEPS if steps else ''}\nANSWER:\n$x = {i}$"
                        for i, q in enumerate(questions, start=1))
+
+
+class FlakyLLM(ScriptedLLM):
+    """Fails the first `failures` calls; answers the rest."""
+    def __init__(self, text, failures):
+        super().__init__(text)
+        self.failures = failures
+
+    def create(self, **kw):
+        with self.lock:
+            fail, self.failures = self.failures > 0, self.failures - 1
+        if fail:
+            raise RuntimeError("OpenRouter 429: rate-limited")
+        return super().create(**kw)
 
 
 @pytest.fixture()
@@ -131,16 +153,53 @@ def test_question_with_a_broken_step_falls_back_to_no_steps():
 
 
 def test_generate_returns_new_questions_with_style_source(retriever):
-    llm = ScriptedLLM(_reply("Prove by induction that $\\sum_{r=1}^{n} (2r-1) = n^2$.",
-                             "Sketch $y=|x-2|$ and $y=3-|x|$. Hence solve $|x-2| < 3-|x|$."))
+    llm = ScriptedLLM(_reply("Prove by induction that $\\sum_{r=1}^{n} (2r-1) = n^2$."),
+                      _reply("Sketch $y=|x-2|$ and $y=3-|x|$. Hence solve $|x-2| < 3-|x|$."))
     quiz = QuizGenerator(llm, retriever, "test-model", rng=random.Random(1)).generate(
         scope=STUDENT, language="en", count=2)
     assert [q.number for q in quiz.questions] == [1, 2]
     assert quiz.questions[0].modelled_on["question_number"] == "1"
-    assert quiz.tokens_used == 150 and quiz.dropped == 0
-    assert quiz.questions[0].steps == []            # no STEP blocks: UI shows the plain answer
+    assert quiz.tokens_used == 300 and quiz.dropped == 0 and quiz.incomplete == 0
+    assert [len(s.options) for s in quiz.questions[0].steps] == [2, 2, 2]
     assert "<example>" in llm.calls[0]["messages"][0]["content"]
     assert "tools" not in llm.calls[0]
+
+
+def test_quiz_is_written_one_question_per_parallel_call(retriever):
+    llm = ScriptedLLM(_reply("Solve $x + 1 = 2$."))
+    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=4)
+    assert len(llm.calls) == 4
+    assert "Write 1 new question," in llm.calls[0]["messages"][0]["content"]
+    assert [q.number for q in quiz.questions] == [1, 2, 3, 4]
+    assert quiz.tokens_used == 600
+
+
+def test_stepless_question_is_asked_again_once(retriever):
+    """Practice is step-by-step only: a question written without usable steps is re-asked once."""
+    llm = ScriptedLLM(_reply("Solve $x - 1 = 2$.", steps=False), _reply("Solve $x + 1 = 2$."))
+    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=1)
+    assert len(llm.calls) == 2
+    assert [q.question for q in quiz.questions] == ["Solve $x + 1 = 2$."] and quiz.incomplete == 0
+
+
+def test_question_still_stepless_after_the_retry_is_left_out(retriever):
+    llm = ScriptedLLM(_reply("Solve $x - 1 = 2$.", steps=False))
+    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=1)
+    assert len(llm.calls) == 2                      # first try + one retry, then give up
+    assert quiz.questions == [] and quiz.incomplete == 1
+
+
+def test_one_failed_call_is_retried_and_does_not_sink_the_quiz(retriever):
+    llm = FlakyLLM(_reply("Solve $x + 1 = 2$."), failures=1)
+    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=4)
+    assert len(llm.calls) == 4                      # answered calls: 3 first time + the retried one
+    assert [q.number for q in quiz.questions] == [1, 2, 3, 4] and quiz.incomplete == 0
+
+
+def test_every_batch_failing_raises(retriever):
+    gen = QuizGenerator(FlakyLLM("", failures=99), retriever, "m")
+    with pytest.raises(RuntimeError):
+        gen.generate(scope=STUDENT, language="en", count=2)
 
 
 def test_no_indexed_questions_raises(retriever):
@@ -158,7 +217,42 @@ def test_same_wording_with_new_numbers_is_not_a_copy():
 
 def test_verbatim_copy_of_a_past_question_is_dropped(retriever):
     copied = "Using the Principle of Mathematical Induction, prove that the sum of r(r+1) from r=1 to n equals n(n+1)(n+2)/3."
-    llm = ScriptedLLM(_reply(copied, "Solve $|2x-1| \\le 5$."))
-    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=2)
+    llm = ScriptedLLM(_reply(copied), _reply("Solve $|2x-1| \\le 5$."))   # the copy is dropped, then re-asked
+    quiz = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate(scope=STUDENT, language="en", count=1)
     assert quiz.dropped == 1
     assert [q.question for q in quiz.questions] == ["Solve $|2x-1| \\le 5$."]
+
+
+def test_generate_one_models_the_requested_slot(retriever):
+    llm = ScriptedLLM(_reply("Solve $|x - 3| < 2$."))
+    q = QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate_one(scope=STUDENT, language="en", slot=2)
+    assert q.number == 2 and q.modelled_on["question_number"] == "2" and len(q.steps) == 3
+    assert "Write 1 new question," in llm.calls[0]["messages"][0]["content"]
+
+
+def test_generate_one_retries_once_then_gives_up(retriever):
+    llm = ScriptedLLM(_reply("Solve $x = 1$.", steps=False))
+    with pytest.raises(QuizIncomplete):
+        QuizGenerator(llm, retriever, "m", rng=random.Random(1)).generate_one(scope=STUDENT, language="en", slot=1)
+    assert len(llm.calls) == 2
+
+
+def test_generate_one_falls_back_to_any_slot_when_not_indexed(retriever):
+    q = QuizGenerator(ScriptedLLM(_reply("Solve $x = 1$.")), retriever, "m", rng=random.Random(1)).generate_one(
+        scope=STUDENT, language="en", slot=9)          # the fixture paper only has Q1 and Q2
+    assert q.number == 9 and q.modelled_on["question_number"] in ("1", "2")
+
+
+def test_options_do_not_give_away_their_verdict():
+    from app.rag.quiz import strip_verdict
+    w = r"For \(n=1\), LHS \(= \frac{1}{4}\), RHS \(= \frac{1}{3}\). LHS \(\neq\) RHS, so the statement fails."
+    assert strip_verdict(w) == r"For \(n=1\), LHS \(= \frac{1}{4}\), RHS \(= \frac{1}{3}\)."
+    assert strip_verdict(r"RHS $= \dfrac{1}{3}$. So LHS = RHS.") == r"RHS $= \dfrac{1}{3}$."
+    keep = r"$x^{2} - 4x + 3 = 0 \Rightarrow x = 1$ or $x = 3$"
+    assert strip_verdict(keep) == keep                      # ordinary working is untouched
+
+
+def test_commentary_in_an_option_rejects_the_step():
+    leaky = STEPPED.replace("WRONG: $x = 4$", "WRONG: $x = 4$, but the student forgets to divide")
+    [(*_, steps)] = parse_quiz(leaky)
+    assert steps == []                                      # step 2 unusable -> question re-asked

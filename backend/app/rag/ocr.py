@@ -107,7 +107,10 @@ def extract_text_pages(pdf_path: Path, out_dir: Path, min_chars: int = 200) -> i
     this is for quick testing. Returns pages written; 0 if the PDF is a scan."""
     from pypdf import PdfReader
 
-    texts = [(p.extract_text() or "").strip() for p in PdfReader(str(pdf_path)).pages]
+    from .tamil_text import normalize_tamil
+
+    # Tamil text layers usually come out in visual order (ை before its consonant): repair it.
+    texts = [normalize_tamil((p.extract_text() or "").strip()) for p in PdfReader(str(pdf_path)).pages]
     if sum(len(t) >= min_chars for t in texts) < len(texts) // 2:
         return 0                                    # mostly scanned: needs real OCR
     out_dir.mkdir(parents=True, exist_ok=True)

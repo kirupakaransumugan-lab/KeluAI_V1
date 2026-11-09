@@ -9,12 +9,15 @@ from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
     ForgotPasswordRequest,
     GoogleSignInRequest,
     LoginRequest,
     ProvidersOut,
     RegisterRequest,
     ResetPasswordRequest,
+    UpdateProfileRequest,
     UserOut,
     VerifyResetCodeRequest,
     VerifyResetCodeResponse,
@@ -51,6 +54,12 @@ def register(data: RegisterRequest, response: Response, db: Session = Depends(ge
     return AuthResponse(user=auth_service.to_user_out(user))
 
 
+def _refuse_disabled(user) -> None:
+    # Only after the password (or Google) check, so it can't reveal which emails exist.
+    if not user.is_active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "account_disabled"})
+
+
 @router.post("/login", response_model=AuthResponse)
 def login(data: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     user = auth_service.authenticate(db, data.email, data.password)
@@ -58,6 +67,7 @@ def login(data: LoginRequest, response: Response, db: Session = Depends(get_db))
         # Same answer for "no such email" and "wrong password", so it can't be used
         # to discover which emails have accounts.
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "invalid_credentials"})
+    _refuse_disabled(user)
     _set_session_cookie(response, user)
     return AuthResponse(user=auth_service.to_user_out(user))
 
@@ -89,6 +99,7 @@ def google(data: GoogleSignInRequest, response: Response, db: Session = Depends(
         ) from None
     except auth_service.EmailTakenError:
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"code": "email_taken"}) from None
+    _refuse_disabled(user)
     _set_session_cookie(response, user)
     return AuthResponse(user=auth_service.to_user_out(user))
 
@@ -129,6 +140,41 @@ def reset_password(data: ResetPasswordRequest, response: Response, db: Session =
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> UserOut:
     return auth_service.to_user_out(user)
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(data: UpdateProfileRequest, user: User = Depends(get_current_user),
+              db: Session = Depends(get_db)) -> UserOut:
+    return auth_service.to_user_out(auth_service.update_profile(db, user, data))
+
+
+@router.post("/password/change", response_model=AuthResponse)
+def change_password(data: ChangePasswordRequest, response: Response, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)) -> AuthResponse:
+    try:
+        auth_service.change_password(db, user, data.current_password, data.new_password)
+    except auth_service.WrongPasswordError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            detail={"code": "wrong_password", "field": "current_password"}) from None
+    # Other sessions are now rejected; this browser gets a fresh one.
+    _set_session_cookie(response, user)
+    return AuthResponse(user=auth_service.to_user_out(user))
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_me(data: DeleteAccountRequest, response: Response, user: User = Depends(get_current_user),
+              db: Session = Depends(get_db)) -> None:
+    try:
+        auth_service.delete_account(db, user, data.confirm_email, data.password)
+    except auth_service.AdminAccountError:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "admin_account"}) from None
+    except auth_service.ConfirmationMismatchError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            detail={"code": "confirm_mismatch", "field": "confirm_email"}) from None
+    except auth_service.WrongPasswordError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            detail={"code": "wrong_password", "field": "password"}) from None
+    response.delete_cookie(ACCESS_COOKIE, path="/api")
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

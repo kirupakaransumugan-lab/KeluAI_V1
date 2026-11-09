@@ -4,7 +4,7 @@ export interface Copy {
   nav: {
     home: string; howItWorks: string; features: string; pricing: string; faq: string; login: string; trial: string; signup: string;
     // Screen-reader labels
-    primaryNav: string; mobileNav: string; language: string; menu: string;
+    primaryNav: string; mobileNav: string; language: string; menu: string; darkMode: string; lightMode: string;
   };
   trialTerms: string;
   badge: string;
@@ -49,6 +49,17 @@ export interface DashboardCopy {
   thisWeek: string;
   /** Shown while a card has no data in the database yet. */
   empty: Record<"plan" | "needsWork" | "continue" | "week", { title: string; text: string }>;
+  /** Home cards once there is data. "{pct}", "{n}", "{p}", "{topic}" are filled in. */
+  home: {
+    planWeak: string; planNew: string; practice: string;
+    topicScore: string;
+    allGood: { title: string; text: string };
+    questions: string; avgScore: string; streak: string; dayNames: string[];
+    quiz: string; mixedQuiz: string; result: string; tutorChat: string; resume: string;
+    loadFailed: string; retry: string;
+    /** "Start quiz" pressed by a student not yet in their exam year. "{year}" is filled in. */
+    fullLock: { title: string; text: string; textNoYear: string; go: string; close: string; checking: string };
+  };
   partner: string;
   askPlaceholder: string;
   ask: string;
@@ -63,6 +74,146 @@ export interface DashboardCopy {
   reload: string;
   tutor: TutorCopy;
   practice: PracticeCopy;
+  pastPapers: PastPapersCopy;
+  progress: ProgressCopy;
+  subscription: SubscriptionCopy;
+  settings: SettingsCopy;
+}
+
+/** Subscription page. "{n}", "{date}", "{plan}", "{used}", "{total}" are filled in. */
+export interface SubscriptionCopy {
+  title: string; subtitle: string;
+  current: string; yourPlan: string; noPlan: string;
+  planNames: Record<"trial" | "monthly" | "annual", string>;
+  status: Record<"trialing" | "active" | "expired" | "cancelled", string>;
+  daysLeft: string; endsOn: string; endedOn: string; trialDay: string;
+  expiredText: string;
+  upgradeTitle: string; upgradeText: string;
+  perMonth: string; perYear: string; annualSaving: string; bestValue: string;
+  choose: string; soon: string; soonText: string; comparePlans: string;
+  history: string; colPlan: string; colStatus: string; colFrom: string; colTo: string;
+  loading: string; loadFailed: string; retry: string;
+}
+
+/** Settings page. */
+export interface SettingsCopy {
+  title: string; subtitle: string;
+  profile: {
+    title: string; text: string; fullName: string; email: string; emailNote: string;
+    mobile: string; mobileHelp: string; medium: string; examYear: string;
+    parentEmail: string; parentEmailHelp: string; save: string; saved: string;
+  };
+  password: {
+    title: string; text: string; setTitle: string; setText: string;
+    current: string; new: string; confirm: string; save: string; saved: string;
+  };
+  danger: {
+    title: string; text: string; open: string; confirmEmail: string; password: string;
+    confirm: string; cancel: string;
+  };
+  errors: {
+    name: string; mobile: string; email: string; passwordShort: string; passwordTooLong: string;
+    mismatch: string; wrongPassword: string; currentRequired: string; confirmMismatch: string; failed: string;
+  };
+}
+
+/** Past papers library + reader. "{n}" / "{year}" are filled in. */
+export interface PastPapersCopy {
+  title: string;
+  subtitle: string;
+  tabs: { papers: string; topic: string; schemes: string };
+  soon: string;
+  selectYear: string;
+  yearTitle: string;
+  kinds: { past_paper: string; marking_scheme: string };
+  paper: string;
+  part: string;
+  page: string;
+  pages: string;
+  questions: string;
+  questionLabel: string;
+  sections: string;
+  read: string;
+  wholeDocument: string;
+  schemeOnly: string;
+  libraryTitle: string;
+  statYears: string;
+  statPapers: string;
+  statSchemes: string;
+  statQuestions: string;
+  quickTitle: string;
+  random: string;
+  askTutor: string;
+  loading: string;
+  retry: string;
+  errorTitle: string;
+  errorText: string;
+  emptyTitle: string;
+  emptyText: string;
+  back: string;
+  sectionsTitle: string;
+  transcribed: string;
+  nothingHere: string;
+  notFoundTitle: string;
+  notFoundText: string;
+}
+
+/** Progress report. "{n}" and friends are filled in. */
+export interface ProgressCopy {
+  title: string;
+  subtitle: string;
+  rangeLabel: string;
+  ranges: { "7": string; "30": string; all: string };
+  loading: string;
+  retry: string;
+  errorTitle: string;
+  errorText: string;
+  startTitle: string;
+  startText: string;
+  startAction: string;
+  mastery: string;
+  masteryChange: string;
+  masteryNoChange: string;
+  topicsCovered: string;
+  topicsLeft: string;
+  accuracy: string;
+  questionsAnswered: string;
+  streak: string;
+  streakDays: string;
+  streakDay: string;
+  streakBest: string;
+  weeklyTitle: string;
+  weeklyText: string;
+  weeklyChange: string;
+  weekLabel: string;
+  thisWeek: string;
+  weekDetail: string;
+  noPractice: string;
+  dailyTitle: string;
+  dailyText: string;
+  dailyCount: string;
+  dayStates: { done: string; missed: string; today: string; before: string };
+  topicsTitle: string;
+  topicsText: string;
+  pure: string;
+  applied: string;
+  notTried: string;
+  topicNone: string;
+  topicSteps: string;
+  topicLast: string;
+  questionsCount: string;
+  appliedNote: string;
+  showAll: string;
+  showFewer: string;
+  recentTitle: string;
+  recentText: string;
+  recentEmpty: string;
+  colType: string;
+  colTopic: string;
+  colScore: string;
+  colDate: string;
+  kinds: Record<string, string>;
+  mixedTopics: string;
 }
 
 /** Practice page. "{n}" / "{total}" / "{pct}" are numbers. */
@@ -72,6 +223,26 @@ export interface PracticeCopy {
   tabs: { all: string; topic: string; papers: string; daily: string; saved: string };
   topics: string;
   questionsTitle: string;
+  quizTitle: string;
+  examNote: string;
+  answeredOf: string;          // {n} {total}
+  finishQuiz: string;
+  unansweredWarn: string;      // {n}
+  resultsTitle: string;
+  scoreSteps: string;          // {n} {total}
+  scoreQuestions: string;      // {n} {total}
+  stepsTally: string;          // {n} {total}
+  yourAnswer: string;
+  correctStep: string;
+  notAnswered: string;
+  right: string;
+  wrong: string;
+  viewResults: string;
+  closeResults: string;
+  close: string;
+  resumeTitle: string;
+  resumeText: string;          // {n} done of {total}, next question {q}
+  resumeBtn: string;
   progress: string;
   steps: string;
   qLabel: string;
@@ -105,14 +276,46 @@ export interface PracticeCopy {
   start: string;
   generating: string;
   generatingText: string;
+  writingNext: string;
+  readyCount: string;          // {n} {total}
   dailyTitle: string;
   dailyText: string;
   dailyWarn: string;
   savedEmpty: string;
   savedEmptyText: string;
   remove: string;
+  /** Saved tab, now kept on the server. "{n}" / "{date}" are filled in. */
+  savedList: {
+    count: string; search: string; allTopics: string; noMatch: string; savedOn: string;
+    loading: string; loadFailed: string; saveFailed: string; limit: string; retry: string;
+  };
   practiceTopic: string;
-  errors: { notIndexed: string; notConfigured: string; failed: string; network: string };
+  fullTitle: string;
+  fullText: string;            // {n} {pure} {applied}
+  fullLocked: string;
+  fullSoon: string;
+  newFullQuiz: string;
+  mine: { title: string; quizzes: string; history: string; again: string };
+  running: {
+    title: string; writing: string; writingShort: string; ready: string; answering: string; done: string;
+    open: string; continueQuiz: string; browse: string;
+  };
+  instantNote: string;
+  checkAnswer: string;
+  levelOf: string;             // {n}
+  subjectTitle: string;
+  subjectText: string;
+  subjectScore: string;
+  notTried: string;
+  loadingTopics: string;
+  pure: string;
+  applied: string;
+  feedback: {
+    open: string; kinds: { mistake: string; method: string }; mistakeLabel: string; methodLabel: string;
+    photoLabel: string; photoNote: string; send: string; cancel: string; thanks: string;
+    errors: { tooLarge: string; badImage: string; tooMany: string; failed: string };
+  };
+  errors: { tooMany: string; noFullQuiz: string; fullLocked: string; notIndexed: string; notConfigured: string; failed: string; network: string };
 }
 
 /** AI tutor chat. "{n}" / "{max}" are numbers. */
@@ -132,6 +335,10 @@ export interface TutorCopy {
   unsave: string;
   more: string;
   deleteChat: string;
+  deleteTitle: string;
+  deleteText: string;          // {title}
+  cancel: string;
+  confirmDelete: string;
   toggleChats: string;
   welcomeTitle: string;
   welcomeText: string;
@@ -150,6 +357,8 @@ export interface TutorCopy {
   placeholder: string;
   attach: string;
   attachSoon: string;
+  /** Attaching a photo of a question, graph or working. */
+  image: { remove: string; onlyMessage: string; historyNote: string; alt: string; dropHere: string };
   voice: string;
   voiceStop: string;
   send: string;
@@ -158,7 +367,7 @@ export interface TutorCopy {
   disclaimer: string;
   truncated: string;
   retry: string;
-  errors: { notConfigured: string; failed: string; network: string };
+  errors: { notConfigured: string; failed: string; network: string; badImage: string; imageTooLarge: string };
 }
 
 export interface ForgotCopy {
@@ -232,7 +441,7 @@ export interface LoginCopy {
   microsoftSoon: string;
   noAccount: string;
   signUp: string;
-  errors: { email: string; password: string; invalid: string; network: string; generic: string; google: string };
+  errors: { email: string; password: string; invalid: string; disabled: string; network: string; generic: string; google: string };
   /** One-time form after a first Google sign-in (field labels come from SignupCopy). */
   googleProfile: { heading: string; intro: string; submit: string; submitting: string; back: string };
   successTitle: string;
@@ -373,6 +582,8 @@ const en: Copy = {
     primaryNav: "Primary",
     mobileNav: "Mobile",
     language: "Language",
+    darkMode: "Switch to dark mode",
+    lightMode: "Switch to light mode",
     menu: "Menu",
   },
   trialTerms: "Trial terms",
@@ -589,6 +800,7 @@ const en: Copy = {
       email: "Please enter a valid email address.",
       password: "Please enter your password.",
       invalid: "That email and password don’t match. Please try again.",
+      disabled: "This account has been switched off. Please contact KELU support.",
       network: "We couldn't reach KELU. Check your connection and try again.",
       generic: "Something went wrong. Please try again.",
       google: "Google sign-in didn't work. Please try again.",
@@ -675,6 +887,20 @@ const en: Copy = {
       continue: { title: "Nothing to continue yet", text: "Your tutor chats and saved questions will appear here." },
       week: { title: "No activity this week", text: "Your daily goals, questions answered and average score will be tracked here." },
     },
+    home: {
+      planWeak: "{pct}% so far · build it up", planNew: "Not tried yet · start here", practice: "Practice",
+      topicScore: "{pct}% · {n} questions",
+      allGood: { title: "No weak topics right now", text: "Every topic you've tried is at 70% or above. Keep it up!" },
+      questions: "Questions", avgScore: "Avg score", streak: "Day streak", dayNames: ["M", "T", "W", "T", "F", "S", "S"],
+      quiz: "{topic} quiz", mixedQuiz: "Mixed quiz", result: "{p}/{n} fully right", tutorChat: "Tutor chat", resume: "Resume",
+      loadFailed: "Couldn't load your progress.", retry: "Retry",
+      fullLock: {
+        title: "This quiz is for exam-year students",
+        text: "The 10-question full syllabus quiz opens in your exam year, as your A/L exam gets closer ({year}). Until then, build your skills with 5-question topic quizzes in Practice. They climb from easy to hard!",
+        textNoYear: "The 10-question full syllabus quiz opens in your exam year. Until then, build your skills with 5-question topic quizzes in Practice. They climb from easy to hard!",
+        go: "Go to Practice", close: "Not now", checking: "Checking...",
+      },
+    },
     partner: "Your AI Maths Partner for A/L Success",
     askPlaceholder: "Ask KELU anything about Combined Maths...",
     ask: "Ask KELU",
@@ -703,6 +929,10 @@ const en: Copy = {
       unsave: "Remove from saved",
       more: "More options",
       deleteChat: "Delete chat",
+      deleteTitle: "Delete this chat?",
+      deleteText: "“{title}” will be removed from this device. This can't be undone.",
+      cancel: "Cancel",
+      confirmDelete: "Delete",
       toggleChats: "Show chats",
       welcomeTitle: "Hi! I'm KELU, your maths tutor.",
       welcomeText: "Tell me which question you're stuck on. I'll give you hints one step at a time, so you learn how to solve it yourself.",
@@ -723,8 +953,12 @@ const en: Copy = {
       nextHintMessage: "Give me the next hint, please.",
       similarMessage: "Show me a similar question so I can practise.",
       placeholder: "Type your question or message...",
-      attach: "Attach your working",
+      attach: "Attach a photo of a question, graph or your working",
       attachSoon: "Attaching your working is coming soon",
+      image: {
+        remove: "Remove image", onlyMessage: "Please look at this image.",
+        historyNote: "[I attached an image]", alt: "Attached image", dropHere: "Drop the image to attach it",
+      },
       voice: "Ask by voice",
       voiceStop: "Stop listening",
       send: "Send",
@@ -737,14 +971,174 @@ const en: Copy = {
         notConfigured: "The tutor isn't set up yet. Please try again later.",
         failed: "I couldn't answer that just now. Please try again.",
         network: "We couldn't reach KELU. Check your connection and try again.",
+        badImage: "That file isn't a photo I can read. Use a JPG, PNG or WebP image.",
+        imageTooLarge: "That image is too large. Try a smaller photo or a screenshot.",
+      },
+    },
+    pastPapers: {
+      title: "Past Papers",
+      subtitle: "Browse the real Sri Lankan A/L Combined Mathematics papers in KELU's library.",
+      tabs: { papers: "Past Papers", topic: "By Topic", schemes: "Marking Schemes" },
+      soon: "Soon",
+      selectYear: "Select Year",
+      yearTitle: "A/L Combined Mathematics – {year}",
+      kinds: { past_paper: "Question paper", marking_scheme: "Marking scheme" },
+      paper: "Paper {n}",
+      part: "Part {n}",
+      page: "Page {n}",
+      pages: "{n} pages",
+      questions: "{n} questions",
+      questionLabel: "Question {n}",
+      sections: "Sections: {n}",
+      read: "Read",
+      wholeDocument: "Whole document",
+      schemeOnly: "Only the marking scheme for {year} is in KELU so far. The question paper hasn't been added yet.",
+      libraryTitle: "In the Library",
+      statYears: "Exam years",
+      statPapers: "Question papers",
+      statSchemes: "Marking schemes",
+      statQuestions: "Questions found",
+      quickTitle: "Quick Actions",
+      random: "Random paper",
+      askTutor: "Ask the AI Tutor",
+      loading: "Loading papers…",
+      retry: "Try again",
+      errorTitle: "We couldn't load the papers",
+      errorText: "Please check your connection and try again.",
+      emptyTitle: "No papers yet",
+      emptyText: "Past papers will appear here once they've been added to KELU.",
+      back: "All past papers",
+      sectionsTitle: "Sections",
+      transcribed: "This text was transcribed automatically, so maths formatting can be lost: for example, x² may appear as x2, and ¼ as 14. Check carefully before relying on a formula.",
+      nothingHere: "Nothing was found for this section.",
+      notFoundTitle: "Paper not found",
+      notFoundText: "This paper isn't in the library.",
+    },
+    progress: {
+      title: "Your progress",
+      subtitle: "A clear view of your Combined Maths journey.",
+      rangeLabel: "Time range",
+      ranges: { "7": "7 days", "30": "30 days", all: "All time" },
+      loading: "Loading your progress…",
+      retry: "Try again",
+      errorTitle: "We couldn't load your progress",
+      errorText: "Please check your connection and try again.",
+      startTitle: "Your report starts with your first quiz",
+      startText: "Finish a practice set and your results will appear here.",
+      startAction: "Start practising",
+      mastery: "Average mastery",
+      masteryChange: "{n} pts vs previous period",
+      masteryNoChange: "Across the topics you've tried",
+      topicsCovered: "Topics covered",
+      topicsLeft: "{n} not tried yet",
+      accuracy: "First-try accuracy",
+      questionsAnswered: "Questions answered: {n}",
+      streak: "Streak",
+      streakDays: "{n} days",
+      streakDay: "{n} day",
+      streakBest: "Best streak: {n}",
+      weeklyTitle: "Average score by week",
+      weeklyText: "Your average score over the last {n} weeks.",
+      weeklyChange: "From {a}% to {b}% over the last {n} weeks.",
+      weekLabel: "W{n}",
+      thisWeek: "This",
+      weekDetail: "{pct}% · Questions: {n}",
+      noPractice: "No practice this week",
+      dailyTitle: "Daily goal",
+      dailyText: "Finish a practice set each day to build consistency.",
+      dailyCount: "{n} of {total} days",
+      dayStates: { done: "Done", missed: "Missed", today: "Today", before: "Before you joined" },
+      topicsTitle: "Mastery by topic",
+      topicsText: "Lowest first · select a topic for details.",
+      pure: "Pure mathematics",
+      applied: "Applied mathematics",
+      notTried: "Not tried",
+      topicNone: "You haven't practised this topic in this period.",
+      topicSteps: "{right} of {total} steps right",
+      topicLast: "last on {when}",
+      questionsCount: "Questions: {n}",
+      appliedNote: "Practise an applied subject to start filling this in.",
+      showAll: "Show all {n} topics",
+      showFewer: "Show fewer",
+      recentTitle: "Recent quizzes",
+      recentText: "Your latest quiz attempts.",
+      recentEmpty: "Your finished quizzes will be listed here.",
+      colType: "Type",
+      colTopic: "Topic",
+      colScore: "Score",
+      colDate: "Date",
+      kinds: { practice: "Practice" },
+      mixedTopics: "Mixed topics",
+    },
+    subscription: {
+      title: "Subscription", subtitle: "Your plan, trial days and plan history.",
+      current: "Current plan", yourPlan: "Your plan", noPlan: "No plan yet",
+      planNames: { trial: "Free Trial", monthly: "Monthly", annual: "Annual" },
+      status: { trialing: "Trial", active: "Active", expired: "Expired", cancelled: "Cancelled" },
+      daysLeft: "{n} days left", endsOn: "Ends {date}", endedOn: "Ended {date}", trialDay: "Day {used} of {total}",
+      expiredText: "Your plan has ended. Choose a plan to keep full access.",
+      upgradeTitle: "Upgrade for full access", upgradeText: "Unlimited practice, AI marking and the full past paper library.",
+      perMonth: "/ month", perYear: "/ year", annualSaving: "Save LKR {n} a year compared with monthly", bestValue: "Best value",
+      choose: "Choose {plan}", soon: "Online payment coming soon",
+      soonText: "Payments in LKR are being set up. Your trial keeps working until then.", comparePlans: "Compare all plans",
+      history: "Plan history", colPlan: "Plan", colStatus: "Status", colFrom: "From", colTo: "To",
+      loading: "Loading your plan...", loadFailed: "Couldn't load your plan.", retry: "Retry",
+    },
+    settings: {
+      title: "Settings", subtitle: "Manage your profile, password and account.",
+      profile: {
+        title: "Profile", text: "This is how KELU knows you and sets up your practice.",
+        fullName: "Full name", email: "Email", emailNote: "Your email can't be changed here.",
+        mobile: "Mobile number", mobileHelp: "Sri Lankan mobile number (07X XXX XXXX)",
+        medium: "Study medium", examYear: "A/L exam year",
+        parentEmail: "Parent or guardian email", parentEmailHelp: "Optional. Leave empty if you don't want to add one.",
+        save: "Save changes", saved: "Profile saved.",
+      },
+      password: {
+        title: "Password", text: "Changing your password signs you out on your other devices.",
+        setTitle: "Set a password", setText: "You sign in with Google. Set a password to also log in with your email.",
+        current: "Current password", new: "New password", confirm: "Confirm new password",
+        save: "Update password", saved: "Password updated. Your other devices have been signed out.",
+      },
+      danger: {
+        title: "Delete account",
+        text: "This permanently deletes your account, progress, saved questions and plan. It can't be undone.",
+        open: "Delete my account", confirmEmail: "Type your email ({email}) to confirm", password: "Your password",
+        confirm: "Permanently delete", cancel: "Cancel",
+      },
+      errors: {
+        name: "Enter your full name.", mobile: "Enter a valid Sri Lankan mobile number.", email: "Enter a valid email.",
+        passwordShort: "Use at least 8 characters.", passwordTooLong: "That password is too long.",
+        mismatch: "The passwords don't match.", wrongPassword: "That password isn't right.", currentRequired: "Enter your current password.",
+        confirmMismatch: "That email doesn't match your account.", failed: "Something went wrong. Please try again.",
       },
     },
     practice: {
       title: "Practice",
-      subtitle: "Build your skills with topic-wise questions, past paper problems and daily practice.",
-      tabs: { all: "All Practice", topic: "By Topic", papers: "Past Papers", daily: "Daily Quiz", saved: "Saved Questions" },
+      subtitle: "Click a topic and work through 5 new questions, from easy to hard.",
+      tabs: { all: "Practice", topic: "By Topic", papers: "Past Papers", daily: "Daily Quiz", saved: "Saved Questions" },
       topics: "Topics",
       questionsTitle: "Practice Questions",
+      quizTitle: "Practice quiz",
+      examNote: "Pick the correct working for each step. Answers are shown after you finish all the questions.",
+      answeredOf: "{n} / {total} answered",
+      finishQuiz: "Finish quiz",
+      unansweredWarn: "{n} steps are not answered yet. They will count as wrong.",
+      resultsTitle: "Your results",
+      scoreSteps: "{n} of {total} steps correct",
+      scoreQuestions: "{n} of {total} questions fully correct",
+      stepsTally: "{n} / {total} steps",
+      yourAnswer: "Your answer",
+      correctStep: "Correct step",
+      notAnswered: "Not answered",
+      right: "Correct",
+      wrong: "Incorrect",
+      viewResults: "View results",
+      closeResults: "Close",
+      close: "Close quiz",
+      resumeTitle: "Your quiz is waiting",
+      resumeText: "{n} of {total} questions done. Pick up at question {q}, or choose a topic.",
+      resumeBtn: "Continue quiz",
       progress: "{n} / {total} questions",
       steps: "{n} / {total} steps",
       qLabel: "Q. {n}",
@@ -772,20 +1166,75 @@ const en: Copy = {
       finish: "Finish",
       doneTitle: "Set complete!",
       doneText: "You worked through {n} of {total} questions. Start a new set to keep going.",
-      newSet: "New set",
+      newSet: "New quiz on this subject",
       startTitle: "Ready to practise?",
       startText: "KELU writes 10 new questions in the style of real A/L Paper I Part A questions. Work through each one step by step.",
       start: "Start practice",
       generating: "Writing your questions...",
-      generatingText: "This takes about a minute. KELU is studying past papers to match their style.",
+      generatingText: "KELU is writing your 5 questions. The first appears in a minute or two. You can browse other topics meanwhile: this quiz keeps being written.",
+      writingNext: "Writing the next question...",
+      readyCount: "{n} of {total} ready",
       dailyTitle: "Daily quiz · 10 questions",
-      dailyText: "A fresh set of past-paper style questions, one for each Paper I Part A topic.",
+      dailyText: "A fresh set of 10 past-paper style questions.",
       dailyWarn: "This replaces your current set.",
       savedEmpty: "No saved questions yet",
       savedEmptyText: "Tap the bookmark on any question to keep it here.",
       remove: "Remove",
+      savedList: {
+        count: "{n} saved", search: "Search saved questions...", allTopics: "All topics",
+        noMatch: "No saved questions match.", savedOn: "Saved {date}", loading: "Loading your saved questions...",
+        loadFailed: "Couldn't load your saved questions.", saveFailed: "Couldn't update your saved questions. Try again.",
+        limit: "You've reached the saved-question limit. Remove some to save more.", retry: "Retry",
+      },
       practiceTopic: "Practise this topic",
+      fullTitle: "Full syllabus quiz",
+      fullText: "{n} questions across the whole syllabus: {pure} Pure and {applied} Applied. Ready straight away.",
+      fullLocked: "This opens in your exam year, once you've covered the whole syllabus.",
+      fullSoon: "Questions for this quiz are being prepared. Please check back soon.",
+      newFullQuiz: "New full syllabus quiz",
+      mine: { title: "Your topics", quizzes: "Quizzes taken: {n}", history: "Recent quizzes", again: "New quiz" },
+      running: {
+        title: "Your quizzes",
+        writing: "Writing questions… {n} of {total} ready",
+        writingShort: "Writing… {n}/{total}",
+        ready: "Ready to start",
+        answering: "{n} of {total} answered",
+        done: "Finished: {pct}%",
+        open: "Open",
+        continueQuiz: "Continue",
+        browse: "Browse other topics",
+      },
+      instantNote: "Pick the correct working for each step, then check your answer.",
+      checkAnswer: "Check answer",
+      levelOf: "Level {n} of 5",
+      subjectTitle: "Choose a subject",
+      subjectText: "Click a topic to start. Its 5 questions, from easy to hard, are written while you keep browsing; open it when it says ready.",
+      subjectScore: "Your score: {pct}%",
+      notTried: "Not tried yet",
+      loadingTopics: "Loading subjects…",
+      pure: "Pure mathematics",
+      applied: "Applied mathematics",
+      feedback: {
+        open: "Report a mistake or share another method",
+        kinds: { mistake: "Found a mistake", method: "Another method" },
+        mistakeLabel: "What's wrong, and what do you think is right?",
+        methodLabel: "How did you solve it?",
+        photoLabel: "Photo of your working (optional)",
+        photoNote: "KELU staff see your message and photo, and an AI service may help check them. The photo is deleted after review. Please don't include your name or other personal details.",
+        send: "Send",
+        cancel: "Cancel",
+        thanks: "Thank you! KELU will check this.",
+        errors: {
+          tooLarge: "That photo is too big. Please use one under 5 MB.",
+          badImage: "Please use a PNG, JPG or WebP photo.",
+          tooMany: "You've sent a lot of reports today. Please try again tomorrow.",
+          failed: "That didn't send. Please try again.",
+        },
+      },
       errors: {
+        tooMany: "Up to {n} quizzes can be written at once. Open one that's ready, or wait a moment.",
+        noFullQuiz: "Questions for this quiz aren't ready yet. Please check back soon.",
+        fullLocked: "The full syllabus quiz opens in your exam year.",
         notIndexed: "Past papers haven't been loaded yet, so KELU can't write questions. Please try again later.",
         notConfigured: "Practice isn't set up yet. Please try again later.",
         failed: "Couldn't write your questions just now. Please try again.",
@@ -811,6 +1260,8 @@ const ta: Copy = {
     primaryNav: "முதன்மை",
     mobileNav: "கைபேசி",
     language: "மொழி",
+    darkMode: "இருண்ட பயன்முறைக்கு மாறு",
+    lightMode: "ஒளி பயன்முறைக்கு மாறு",
     menu: "பட்டியல்",
   },
   trialTerms: "இலவச சோதனை நிபந்தனைகள்",
@@ -1027,6 +1478,7 @@ const ta: Copy = {
       email: "சரியான மின்னஞ்சல் முகவரியை உள்ளிடுங்கள்.",
       password: "உங்கள் கடவுச்சொல்லை உள்ளிடுங்கள்.",
       invalid: "மின்னஞ்சலும் கடவுச்சொல்லும் பொருந்தவில்லை. மீண்டும் முயலுங்கள்.",
+      disabled: "இந்தக் கணக்கு நிறுத்தி வைக்கப்பட்டுள்ளது. KELU உதவிக் குழுவைத் தொடர்புகொள்ளுங்கள்.",
       network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
       generic: "ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயலுங்கள்.",
       google: "Google மூலம் உள்நுழைய முடியவில்லை. மீண்டும் முயலுங்கள்.",
@@ -1113,6 +1565,20 @@ const ta: Copy = {
       continue: { title: "தொடர இன்னும் எதுவும் இல்லை", text: "உங்கள் ஆசிரியர் உரையாடல்களும் சேமித்த வினாக்களும் இங்கே தோன்றும்." },
       week: { title: "இந்த வாரம் செயற்பாடு இல்லை", text: "உங்கள் தினசரி இலக்குகள், விடையளித்த வினாக்கள், சராசரிப் புள்ளி இங்கே பதிவாகும்." },
     },
+    home: {
+      planWeak: "இதுவரை {pct}% · மேம்படுத்துங்கள்", planNew: "இன்னும் முயலவில்லை · இங்கே தொடங்குங்கள்", practice: "பயிற்சி",
+      topicScore: "{pct}% · {n} வினாக்கள்",
+      allGood: { title: "தற்போது பலவீனமான தலைப்புகள் இல்லை", text: "நீங்கள் முயன்ற எல்லாத் தலைப்புகளும் 70% அல்லது அதற்கு மேல். தொடருங்கள்!" },
+      questions: "வினாக்கள்", avgScore: "சராசரி", streak: "தொடர் நாட்கள்", dayNames: ["தி", "செ", "பு", "வி", "வெ", "ச", "ஞா"],
+      quiz: "{topic} வினாடி வினா", mixedQuiz: "கலப்பு வினாடி வினா", result: "{p}/{n} முழுமையாகச் சரி", tutorChat: "ஆசிரியர் உரையாடல்", resume: "தொடர்",
+      loadFailed: "உங்கள் முன்னேற்றத்தை ஏற்ற முடியவில்லை.", retry: "மீண்டும் முயல்",
+      fullLock: {
+        title: "இந்த வினாடி வினா பரீட்சை ஆண்டு மாணவர்களுக்கு மட்டும்",
+        text: "10 வினாக்கள் கொண்ட முழுப் பாடத்திட்ட வினாடி வினா, உங்கள் உ/த பரீட்சை நெருங்கும் பரீட்சை ஆண்டில் ({year}) திறக்கப்படும். அதுவரை பயிற்சிப் பக்கத்தில் 5 வினாக்கள் கொண்ட தலைப்பு வினாடி வினாக்களைச் செய்து உங்கள் திறனை வளர்த்துக்கொள்ளுங்கள். அவை எளிதிலிருந்து கடினம் வரை படிப்படியாக உயரும்!",
+        textNoYear: "10 வினாக்கள் கொண்ட முழுப் பாடத்திட்ட வினாடி வினா உங்கள் பரீட்சை ஆண்டில் திறக்கப்படும். அதுவரை பயிற்சிப் பக்கத்தில் 5 வினாக்கள் கொண்ட தலைப்பு வினாடி வினாக்களைச் செய்து உங்கள் திறனை வளர்த்துக்கொள்ளுங்கள். அவை எளிதிலிருந்து கடினம் வரை படிப்படியாக உயரும்!",
+        go: "பயிற்சிக்குச் செல்", close: "பின்னர்", checking: "சரிபார்க்கிறது...",
+      },
+    },
     partner: "உ/த வெற்றிக்கான உங்கள் AI கணிதத் துணை",
     askPlaceholder: "இணைந்த கணிதம் பற்றி KELU இடம் எதையும் கேளுங்கள்...",
     ask: "KELU இடம் கேள்",
@@ -1141,6 +1607,10 @@ const ta: Copy = {
       unsave: "சேமிப்பிலிருந்து நீக்கு",
       more: "மேலும் தெரிவுகள்",
       deleteChat: "உரையாடலை நீக்கு",
+      deleteTitle: "இந்த உரையாடலை நீக்கவா?",
+      deleteText: "“{title}” இந்தச் சாதனத்திலிருந்து நீக்கப்படும். இதை மீட்டெடுக்க முடியாது.",
+      cancel: "ரத்துசெய்",
+      confirmDelete: "நீக்கு",
       toggleChats: "உரையாடல்களைக் காட்டு",
       welcomeTitle: "வணக்கம்! நான் KELU, உங்கள் கணித ஆசிரியர்.",
       welcomeText: "எந்த வினாவில் சிக்கியுள்ளீர்கள் என்று சொல்லுங்கள். நீங்களே தீர்க்கக் கற்றுக்கொள்ள, ஒவ்வொரு படியாகக் குறிப்புகள் தருவேன்.",
@@ -1161,8 +1631,12 @@ const ta: Copy = {
       nextHintMessage: "தயவுசெய்து அடுத்த குறிப்பைத் தாருங்கள்.",
       similarMessage: "பயிற்சி செய்ய இதைப் போன்ற வினா ஒன்றைக் காட்டுங்கள்.",
       placeholder: "உங்கள் வினா அல்லது செய்தியைத் தட்டச்சு செய்யுங்கள்...",
-      attach: "உங்கள் செய்கையை இணை",
+      attach: "வினா, வரைபு அல்லது உங்கள் செய்கையின் படத்தை இணை",
       attachSoon: "செய்கையை இணைக்கும் வசதி விரைவில்",
+      image: {
+        remove: "படத்தை நீக்கு", onlyMessage: "இந்தப் படத்தைப் பாருங்கள்.",
+        historyNote: "[நான் ஒரு படத்தை இணைத்தேன்]", alt: "இணைத்த படம்", dropHere: "இணைக்கப் படத்தை இங்கே விடுங்கள்",
+      },
       voice: "குரலால் கேள்",
       voiceStop: "கேட்பதை நிறுத்து",
       send: "அனுப்பு",
@@ -1175,14 +1649,174 @@ const ta: Copy = {
         notConfigured: "ஆசிரியர் இன்னும் அமைக்கப்படவில்லை. பின்னர் முயலுங்கள்.",
         failed: "இப்போது பதிலளிக்க முடியவில்லை. மீண்டும் முயலுங்கள்.",
         network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+        badImage: "இந்தக் கோப்பை வாசிக்க முடியவில்லை. JPG, PNG அல்லது WebP படத்தைப் பயன்படுத்துங்கள்.",
+        imageTooLarge: "படம் மிகப் பெரியது. சிறிய படம் அல்லது திரைப்பிடிப்பை முயலுங்கள்.",
+      },
+    },
+    pastPapers: {
+      title: "கடந்தகால வினாத்தாள்கள்",
+      subtitle: "KELU நூலகத்தில் உள்ள இலங்கை உயர்தர இணைந்த கணித வினாத்தாள்களைப் பாருங்கள்.",
+      tabs: { papers: "கடந்தகால வினாத்தாள்கள்", topic: "தலைப்பு வாரியாக", schemes: "புள்ளித் திட்டங்கள்" },
+      soon: "விரைவில்",
+      selectYear: "ஆண்டைத் தெரிவுசெய்க",
+      yearTitle: "உயர்தர இணைந்த கணிதம் – {year}",
+      kinds: { past_paper: "வினாத்தாள்", marking_scheme: "புள்ளித் திட்டம்" },
+      paper: "வினாத்தாள் {n}",
+      part: "பகுதி {n}",
+      page: "பக்கம் {n}",
+      pages: "{n} பக்கங்கள்",
+      questions: "{n} வினாக்கள்",
+      questionLabel: "வினா {n}",
+      sections: "பிரிவுகள்: {n}",
+      read: "வாசிக்க",
+      wholeDocument: "முழு ஆவணம்",
+      schemeOnly: "{year} ஆண்டுக்கான புள்ளித் திட்டம் மட்டுமே தற்போது KELU இல் உள்ளது. வினாத்தாள் இன்னும் சேர்க்கப்படவில்லை.",
+      libraryTitle: "நூலகத்தில்",
+      statYears: "பரீட்சை ஆண்டுகள்",
+      statPapers: "வினாத்தாள்கள்",
+      statSchemes: "புள்ளித் திட்டங்கள்",
+      statQuestions: "கண்டறியப்பட்ட வினாக்கள்",
+      quickTitle: "விரைவுச் செயல்கள்",
+      random: "ஏதேனும் ஒரு வினாத்தாள்",
+      askTutor: "AI ஆசிரியரிடம் கேளுங்கள்",
+      loading: "வினாத்தாள்கள் ஏற்றப்படுகின்றன…",
+      retry: "மீண்டும் முயற்சிக்க",
+      errorTitle: "வினாத்தாள்களை ஏற்ற முடியவில்லை",
+      errorText: "உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+      emptyTitle: "இன்னும் வினாத்தாள்கள் இல்லை",
+      emptyText: "கடந்தகால வினாத்தாள்கள் KELU இல் சேர்க்கப்பட்டதும் இங்கே தோன்றும்.",
+      back: "அனைத்து வினாத்தாள்களும்",
+      sectionsTitle: "பிரிவுகள்",
+      transcribed: "இந்த உரை தானாகப் படியெடுக்கப்பட்டது; எனவே கணித வடிவமைப்பு மாறியிருக்கலாம்: உதாரணமாக, x² என்பது x2 எனவும், ¼ என்பது 14 எனவும் தோன்றலாம். சூத்திரங்களைக் கவனமாகச் சரிபார்க்கவும்.",
+      nothingHere: "இந்தப் பிரிவில் எதுவும் கிடைக்கவில்லை.",
+      notFoundTitle: "வினாத்தாள் கிடைக்கவில்லை",
+      notFoundText: "இந்த வினாத்தாள் நூலகத்தில் இல்லை.",
+    },
+    progress: {
+      title: "உங்கள் முன்னேற்றம்",
+      subtitle: "உங்கள் இணைந்த கணிதப் பயணத்தின் தெளிவான பார்வை.",
+      rangeLabel: "காலப்பகுதி",
+      ranges: { "7": "7 நாட்கள்", "30": "30 நாட்கள்", all: "முழுக் காலம்" },
+      loading: "உங்கள் முன்னேற்றம் ஏற்றப்படுகிறது…",
+      retry: "மீண்டும் முயற்சிக்க",
+      errorTitle: "உங்கள் முன்னேற்றத்தை ஏற்ற முடியவில்லை",
+      errorText: "உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+      startTitle: "உங்கள் முதல் வினாடி வினாவுடன் அறிக்கை தொடங்கும்",
+      startText: "ஒரு பயிற்சித் தொகுதியை முடியுங்கள்; உங்கள் பெறுபேறுகள் இங்கே தோன்றும்.",
+      startAction: "பயிற்சியைத் தொடங்குக",
+      mastery: "சராசரித் தேர்ச்சி",
+      masteryChange: "முந்தைய காலத்துடன் ஒப்பிடுகையில் {n} புள்ளிகள்",
+      masteryNoChange: "நீங்கள் முயற்சித்த தலைப்புகளில்",
+      topicsCovered: "உள்ளடக்கிய தலைப்புகள்",
+      topicsLeft: "{n} இன்னும் முயற்சிக்கவில்லை",
+      accuracy: "முதல் முயற்சித் துல்லியம்",
+      questionsAnswered: "விடையளித்த வினாக்கள்: {n}",
+      streak: "தொடர்ச்சி",
+      streakDays: "{n} நாட்கள்",
+      streakDay: "{n} நாள்",
+      streakBest: "சிறந்த தொடர்ச்சி: {n}",
+      weeklyTitle: "வார சராசரிப் புள்ளி",
+      weeklyText: "கடந்த {n} வாரங்களில் உங்கள் சராசரிப் புள்ளி.",
+      weeklyChange: "கடந்த {n} வாரங்களில் {a}% இலிருந்து {b}% ஆக.",
+      weekLabel: "வா{n}",
+      thisWeek: "இவ்வாரம்",
+      weekDetail: "{pct}% · வினாக்கள்: {n}",
+      noPractice: "இந்த வாரம் பயிற்சி இல்லை",
+      dailyTitle: "நாளாந்த இலக்கு",
+      dailyText: "தொடர்ச்சியை வளர்க்க ஒவ்வொரு நாளும் ஒரு பயிற்சித் தொகுதியை முடியுங்கள்.",
+      dailyCount: "{total} இல் {n} நாட்கள்",
+      dayStates: { done: "முடிந்தது", missed: "தவறியது", today: "இன்று", before: "இணைவதற்கு முன்" },
+      topicsTitle: "தலைப்பு வாரியான தேர்ச்சி",
+      topicsText: "குறைந்தது முதலில் · விபரங்களுக்கு ஒரு தலைப்பைத் தெரிவுசெய்க.",
+      pure: "தூய கணிதம்",
+      applied: "பிரயோக கணிதம்",
+      notTried: "முயற்சிக்கவில்லை",
+      topicNone: "இந்தக் காலப்பகுதியில் இந்தத் தலைப்பைப் பயிற்சி செய்யவில்லை.",
+      topicSteps: "{total} படிகளில் {right} சரி",
+      topicLast: "இறுதியாக {when}",
+      questionsCount: "வினாக்கள்: {n}",
+      appliedNote: "இதை நிரப்பத் தொடங்க, ஒரு பிரயோகப் பாடத்தைப் பயிற்சி செய்யுங்கள்.",
+      showAll: "{n} தலைப்புகளையும் காட்டுக",
+      showFewer: "குறைவாகக் காட்டுக",
+      recentTitle: "அண்மைய வினாடி வினாக்கள்",
+      recentText: "உங்கள் அண்மைய முயற்சிகள்.",
+      recentEmpty: "நீங்கள் முடித்த வினாடி வினாக்கள் இங்கே பட்டியலிடப்படும்.",
+      colType: "வகை",
+      colTopic: "தலைப்பு",
+      colScore: "புள்ளி",
+      colDate: "திகதி",
+      kinds: { practice: "பயிற்சி" },
+      mixedTopics: "பல்வேறு தலைப்புகள்",
+    },
+    subscription: {
+      title: "சந்தா", subtitle: "உங்கள் திட்டம், சோதனை நாட்கள், திட்ட வரலாறு.",
+      current: "தற்போதைய திட்டம்", yourPlan: "உங்கள் திட்டம்", noPlan: "இன்னும் திட்டம் இல்லை",
+      planNames: { trial: "இலவச சோதனை", monthly: "மாதாந்தம்", annual: "வருடாந்தம்" },
+      status: { trialing: "சோதனை", active: "செயலில்", expired: "காலாவதி", cancelled: "இரத்து" },
+      daysLeft: "{n} நாட்கள் உள்ளன", endsOn: "{date} அன்று முடிகிறது", endedOn: "{date} அன்று முடிந்தது", trialDay: "{total} இல் {used} ஆம் நாள்",
+      expiredText: "உங்கள் திட்டம் முடிந்துவிட்டது. முழு அணுகலுக்கு ஒரு திட்டத்தைத் தெரிவுசெய்யுங்கள்.",
+      upgradeTitle: "முழு அணுகலுக்கு மேம்படுத்துங்கள்", upgradeText: "வரம்பற்ற பயிற்சி, AI மதிப்பீடு, முழுக் கடந்தகால வினாத்தாள் நூலகம்.",
+      perMonth: "/ மாதம்", perYear: "/ வருடம்", annualSaving: "மாதாந்தத்துடன் ஒப்பிடுகையில் வருடத்துக்கு LKR {n} சேமிப்பு", bestValue: "சிறந்த மதிப்பு",
+      choose: "{plan} தெரிவுசெய்", soon: "இணையவழிக் கட்டணம் விரைவில்",
+      soonText: "LKR கட்டண வசதி அமைக்கப்படுகிறது. அதுவரை உங்கள் சோதனைக் காலம் தொடரும்.", comparePlans: "எல்லாத் திட்டங்களையும் ஒப்பிடு",
+      history: "திட்ட வரலாறு", colPlan: "திட்டம்", colStatus: "நிலை", colFrom: "தொடக்கம்", colTo: "முடிவு",
+      loading: "உங்கள் திட்டத்தை ஏற்றுகிறது...", loadFailed: "உங்கள் திட்டத்தை ஏற்ற முடியவில்லை.", retry: "மீண்டும் முயல்",
+    },
+    settings: {
+      title: "அமைப்புகள்", subtitle: "உங்கள் சுயவிவரம், கடவுச்சொல், கணக்கை நிர்வகியுங்கள்.",
+      profile: {
+        title: "சுயவிவரம்", text: "KELU உங்களை அறிந்து பயிற்சியை அமைப்பது இதைக் கொண்டே.",
+        fullName: "முழுப் பெயர்", email: "மின்னஞ்சல்", emailNote: "மின்னஞ்சலை இங்கே மாற்ற முடியாது.",
+        mobile: "கைபேசி இலக்கம்", mobileHelp: "இலங்கைக் கைபேசி இலக்கம் (07X XXX XXXX)",
+        medium: "கற்கை மொழிமூலம்", examYear: "உ/த பரீட்சை ஆண்டு",
+        parentEmail: "பெற்றோர் / பாதுகாவலர் மின்னஞ்சல்", parentEmailHelp: "விருப்பத்தேர்வு. சேர்க்க விரும்பாவிடின் வெறுமையாக விடுங்கள்.",
+        save: "மாற்றங்களைச் சேமி", saved: "சுயவிவரம் சேமிக்கப்பட்டது.",
+      },
+      password: {
+        title: "கடவுச்சொல்", text: "கடவுச்சொல்லை மாற்றினால் உங்கள் மற்றைய சாதனங்களில் வெளியேற்றப்படுவீர்கள்.",
+        setTitle: "கடவுச்சொல் அமை", setText: "நீங்கள் Google மூலம் உள்நுழைகிறீர்கள். மின்னஞ்சல் மூலமும் உள்நுழையக் கடவுச்சொல் அமையுங்கள்.",
+        current: "தற்போதைய கடவுச்சொல்", new: "புதிய கடவுச்சொல்", confirm: "புதிய கடவுச்சொல்லை உறுதிப்படுத்து",
+        save: "கடவுச்சொல்லைப் புதுப்பி", saved: "கடவுச்சொல் புதுப்பிக்கப்பட்டது. மற்றைய சாதனங்களில் வெளியேற்றப்பட்டது.",
+      },
+      danger: {
+        title: "கணக்கை நீக்கு",
+        text: "இது உங்கள் கணக்கு, முன்னேற்றம், சேமித்த வினாக்கள், திட்டம் அனைத்தையும் நிரந்தரமாக நீக்கும். மீட்க முடியாது.",
+        open: "என் கணக்கை நீக்கு", confirmEmail: "உறுதிப்படுத்த உங்கள் மின்னஞ்சலை ({email}) தட்டச்சு செய்யுங்கள்", password: "உங்கள் கடவுச்சொல்",
+        confirm: "நிரந்தரமாக நீக்கு", cancel: "இரத்துசெய்",
+      },
+      errors: {
+        name: "உங்கள் முழுப் பெயரை உள்ளிடுங்கள்.", mobile: "சரியான இலங்கைக் கைபேசி இலக்கத்தை உள்ளிடுங்கள்.", email: "சரியான மின்னஞ்சலை உள்ளிடுங்கள்.",
+        passwordShort: "குறைந்தது 8 எழுத்துகள் பயன்படுத்துங்கள்.", passwordTooLong: "கடவுச்சொல் மிக நீளமானது.",
+        mismatch: "கடவுச்சொற்கள் பொருந்தவில்லை.", wrongPassword: "கடவுச்சொல் சரியில்லை.", currentRequired: "தற்போதைய கடவுச்சொல்லை உள்ளிடுங்கள்.",
+        confirmMismatch: "மின்னஞ்சல் உங்கள் கணக்குடன் பொருந்தவில்லை.", failed: "ஏதோ தவறு நடந்தது. மீண்டும் முயலுங்கள்.",
       },
     },
     practice: {
       title: "பயிற்சி",
-      subtitle: "தலைப்புவாரி வினாக்கள், கடந்தகால வினாத்தாள் கணக்குகள், தினசரிப் பயிற்சி மூலம் உங்கள் திறனை வளருங்கள்.",
-      tabs: { all: "அனைத்துப் பயிற்சி", topic: "தலைப்புவாரி", papers: "கடந்தகால வினாத்தாள்கள்", daily: "தினசரி வினாடி வினா", saved: "சேமித்த வினாக்கள்" },
+      subtitle: "ஒரு பாடத்தைத் தெரிவுசெய்து, AI எழுதிய 5 புதிய வினாக்களைப் படிப்படியாகத் தீருங்கள்.",
+      tabs: { all: "பயிற்சி", topic: "தலைப்புவாரி", papers: "கடந்தகால வினாத்தாள்கள்", daily: "தினசரி வினாடி வினா", saved: "சேமித்த வினாக்கள்" },
       topics: "தலைப்புகள்",
       questionsTitle: "பயிற்சி வினாக்கள்",
+      quizTitle: "பயிற்சி வினாடி வினா",
+      examNote: "ஒவ்வொரு படிக்கும் சரியான செயல்முறையைத் தேர்ந்தெடுங்கள். எல்லா வினாக்களையும் முடித்த பின் விடைகள் காட்டப்படும்.",
+      answeredOf: "{total} இல் {n} விடையளிக்கப்பட்டது",
+      finishQuiz: "வினாடி வினாவை முடி",
+      unansweredWarn: "{n} படிகளுக்கு இன்னும் விடையளிக்கவில்லை. அவை தவறாகக் கணக்கிடப்படும்.",
+      resultsTitle: "உங்கள் பெறுபேறுகள்",
+      scoreSteps: "{total} படிகளில் {n} சரி",
+      scoreQuestions: "{total} வினாக்களில் {n} முழுமையாகச் சரி",
+      stepsTally: "{n} / {total} படிகள்",
+      yourAnswer: "உங்கள் விடை",
+      correctStep: "சரியான படி",
+      notAnswered: "விடையளிக்கவில்லை",
+      right: "சரி",
+      wrong: "தவறு",
+      viewResults: "பெறுபேறுகளைப் பார்",
+      closeResults: "மூடு",
+      close: "வினாடி வினாவை மூடு",
+      resumeTitle: "உங்கள் வினாடி வினா காத்திருக்கிறது",
+      resumeText: "{total} வினாக்களில் {n} முடிந்தது. வினா {q} இலிருந்து தொடருங்கள், அல்லது ஒரு தலைப்பைத் தேர்ந்தெடுங்கள்.",
+      resumeBtn: "வினாடி வினாவைத் தொடர்",
       progress: "{n} / {total} வினாக்கள்",
       steps: "{n} / {total} படிகள்",
       qLabel: "வினா {n}",
@@ -1210,20 +1844,75 @@ const ta: Copy = {
       finish: "முடி",
       doneTitle: "தொகுதி முடிந்தது!",
       doneText: "{total} வினாக்களில் {n} ஐச் செய்து முடித்தீர்கள். தொடர புதிய தொகுதியைத் தொடங்குங்கள்.",
-      newSet: "புதிய தொகுதி",
+      newSet: "இந்தப் பாடத்தில் புதிய வினாடி வினா",
       startTitle: "பயிற்சி செய்யத் தயாரா?",
       startText: "உண்மையான உ/த வினாத்தாள் I பகுதி A வினாக்களின் பாணியில் KELU 10 புதிய வினாக்களை எழுதும். ஒவ்வொன்றையும் படிப்படியாகச் செய்யுங்கள்.",
       start: "பயிற்சியைத் தொடங்கு",
       generating: "உங்கள் வினாக்கள் எழுதப்படுகின்றன...",
-      generatingText: "இதற்குச் சுமார் ஒரு நிமிடம் ஆகும். பாணியைப் பொருத்த KELU கடந்தகால வினாத்தாள்களைப் படிக்கிறது.",
+      generatingText: "KELU உங்கள் 5 வினாக்களை எழுதுகிறது. முதலாவது ஓரிரு நிமிடங்களில் தோன்றும். இதற்கிடையில் வேறு தலைப்புகளைப் பார்க்கலாம்: இந்த வினாடி வினா தொடர்ந்து எழுதப்படும்.",
+      writingNext: "அடுத்த வினா எழுதப்படுகிறது...",
+      readyCount: "{total} இல் {n} தயார்",
       dailyTitle: "தினசரி வினாடி வினா · 10 வினாக்கள்",
       dailyText: "வினாத்தாள் I பகுதி A இன் ஒவ்வொரு தலைப்புக்கும் ஒன்றாக, கடந்தகால வினாத்தாள் பாணியில் புதிய வினாக்கள்.",
       dailyWarn: "இது உங்கள் தற்போதைய தொகுதியை மாற்றும்.",
       savedEmpty: "இன்னும் சேமித்த வினாக்கள் இல்லை",
       savedEmptyText: "எந்த வினாவிலும் உள்ள புத்தகக்குறியைத் தட்டி இங்கே வைத்திருங்கள்.",
       remove: "நீக்கு",
+      savedList: {
+        count: "{n} சேமிப்பு", search: "சேமித்த வினாக்களைத் தேடு...", allTopics: "எல்லாத் தலைப்புகளும்",
+        noMatch: "பொருந்தும் சேமித்த வினாக்கள் இல்லை.", savedOn: "{date} அன்று சேமித்தது", loading: "சேமித்த வினாக்களை ஏற்றுகிறது...",
+        loadFailed: "சேமித்த வினாக்களை ஏற்ற முடியவில்லை.", saveFailed: "சேமித்த வினாக்களைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலுங்கள்.",
+        limit: "சேமிப்பு வரம்பை அடைந்துவிட்டீர்கள். மேலும் சேமிக்கச் சிலவற்றை நீக்குங்கள்.", retry: "மீண்டும் முயல்",
+      },
       practiceTopic: "இந்தத் தலைப்பைப் பயிற்சி செய்",
+      fullTitle: "முழுப் பாடத்திட்ட வினாடி வினா",
+      fullText: "முழுப் பாடத்திட்டத்திலிருந்து {n} வினாக்கள்: தூய கணிதம் {pure}, பிரயோக கணிதம் {applied}. உடனே தொடங்கலாம்.",
+      fullLocked: "முழுப் பாடத்திட்டத்தையும் முடித்த பின், உங்கள் பரீட்சை ஆண்டில் இது திறக்கும்.",
+      fullSoon: "இந்த வினாடி வினாவுக்கான வினாக்கள் தயாராகின்றன. பின்னர் பாருங்கள்.",
+      newFullQuiz: "புதிய முழுப் பாடத்திட்ட வினாடி வினா",
+      mine: { title: "உங்கள் தலைப்புகள்", quizzes: "செய்த வினாடி வினாக்கள்: {n}", history: "அண்மைய வினாடி வினாக்கள்", again: "புதிய வினாடி வினா" },
+      running: {
+        title: "உங்கள் வினாடி வினாக்கள்",
+        writing: "வினாக்கள் எழுதப்படுகின்றன… {total} இல் {n} தயார்",
+        writingShort: "எழுதப்படுகிறது… {n}/{total}",
+        ready: "தொடங்கத் தயார்",
+        answering: "{total} இல் {n} விடையளிக்கப்பட்டது",
+        done: "முடிந்தது: {pct}%",
+        open: "திறக்க",
+        continueQuiz: "தொடர்க",
+        browse: "வேறு தலைப்புகளைப் பார்க்க",
+      },
+      instantNote: "ஒவ்வொரு படிக்கும் சரியான செயல்முறையைத் தேர்ந்தெடுத்து, விடையைச் சரிபாருங்கள்.",
+      checkAnswer: "விடையைச் சரிபார்",
+      levelOf: "நிலை {n} / 5",
+      subjectTitle: "ஒரு பாடத்தைத் தெரிவுசெய்க",
+      subjectText: "தொடங்க ஒரு தலைப்பைக் கிளிக் செய்யுங்கள். எளிதானதிலிருந்து கடினமானது வரையான 5 வினாக்களும் நீங்கள் மற்றவற்றைப் பார்க்கும்போதே எழுதப்படும்; தயாரானதும் திறவுங்கள்.",
+      subjectScore: "உங்கள் பெறுபேறு: {pct}%",
+      notTried: "இன்னும் முயற்சிக்கவில்லை",
+      loadingTopics: "பாடங்கள் ஏற்றப்படுகின்றன…",
+      pure: "தூய கணிதம்",
+      applied: "பிரயோக கணிதம்",
+      feedback: {
+        open: "தவறைத் தெரிவிக்க அல்லது வேறு முறையைப் பகிர",
+        kinds: { mistake: "தவறு கண்டேன்", method: "வேறு முறை" },
+        mistakeLabel: "என்ன தவறு? சரியானது என்ன என்று நினைக்கிறீர்கள்?",
+        methodLabel: "இதை எப்படித் தீர்த்தீர்கள்?",
+        photoLabel: "உங்கள் செயல்முறையின் படம் (விரும்பினால்)",
+        photoNote: "உங்கள் செய்தியையும் படத்தையும் KELU பணியாளர்கள் பார்ப்பார்கள்; அவற்றைச் சரிபார்க்க AI சேவையும் உதவக்கூடும். மீளாய்வின் பின் படம் நீக்கப்படும். உங்கள் பெயர் அல்லது தனிப்பட்ட விபரங்களைச் சேர்க்க வேண்டாம்.",
+        send: "அனுப்புக",
+        cancel: "இரத்துச் செய்க",
+        thanks: "நன்றி! KELU இதைச் சரிபார்க்கும்.",
+        errors: {
+          tooLarge: "படம் மிகப் பெரியது. 5 MB இலும் குறைவான படத்தைப் பயன்படுத்தவும்.",
+          badImage: "PNG, JPG அல்லது WebP படத்தைப் பயன்படுத்தவும்.",
+          tooMany: "இன்று பல அறிக்கைகளை அனுப்பியுள்ளீர்கள். நாளை மீண்டும் முயற்சிக்கவும்.",
+          failed: "அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+        },
+      },
       errors: {
+        tooMany: "ஒரே நேரத்தில் {n} வினாடி வினாக்கள் வரை எழுதப்படலாம். தயாரான ஒன்றைத் திறக்கவும், அல்லது சற்றுப் பொறுக்கவும்.",
+        noFullQuiz: "இந்த வினாடி வினாவுக்கான வினாக்கள் இன்னும் தயாராகவில்லை. பின்னர் பாருங்கள்.",
+        fullLocked: "முழுப் பாடத்திட்ட வினாடி வினா உங்கள் பரீட்சை ஆண்டில் திறக்கும்.",
         notIndexed: "கடந்தகால வினாத்தாள்கள் இன்னும் ஏற்றப்படவில்லை, எனவே KELU வினாக்களை எழுத முடியாது. பின்னர் முயலுங்கள்.",
         notConfigured: "பயிற்சி இன்னும் அமைக்கப்படவில்லை. பின்னர் முயலுங்கள்.",
         failed: "இப்போது வினாக்களை எழுத முடியவில்லை. மீண்டும் முயலுங்கள்.",

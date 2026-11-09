@@ -28,6 +28,9 @@ def get_current_user(
     user = user_repository.get_by_id(db, user_id)
     if user is None:
         raise unauthorized
+    if not user.is_active:
+        # 401, not 403: the frontend sends a 401 to the log-in page, which explains it.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "account_disabled"})
     # A password reset signs out every session that existed before it.
     if user.password_changed_at and issued_at < user.password_changed_at:
         raise unauthorized

@@ -23,9 +23,9 @@ export function LoginForm() {
   const google = useGoogleSignIn(setUser);
   const navigate = useNavigate();
 
-  // Every account starts as a student; signing in lands on the student dashboard.
+  // Students land on their dashboard, admins on the admin overview.
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
+    if (user) navigate(user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
   }, [user, navigate]);
   const shownError = formError ?? google.error;
 
@@ -49,6 +49,8 @@ export function LoginForm() {
         setFormError("invalid");
         setPassword("");
         document.getElementById("li-password")?.focus();
+      } else if (err instanceof ApiError && err.code === "account_disabled") {
+        setFormError("disabled");
       } else {
         setFormError(err instanceof ApiError ? "generic" : "network");
       }

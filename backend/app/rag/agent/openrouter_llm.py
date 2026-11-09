@@ -60,7 +60,9 @@ class Response:
 class OpenRouterLLM:
     """Satisfies tutor_agent.LLMClient: create(**anthropic_style_kwargs)."""
 
-    def __init__(self, api_key: str, base_url: str = OPENROUTER_URL, timeout: float = 120):
+    def __init__(self, api_key: str, base_url: str = OPENROUTER_URL, timeout: float = 120,
+                 temperature: float | None = None):
+        self.temperature = temperature
         self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={
             "Authorization": f"Bearer {api_key}",
             "X-Title": "KELU tutor",        # shown on the OpenRouter usage page
@@ -84,6 +86,8 @@ class OpenRouterLLM:
         body: dict[str, Any] = {"model": names[0], "messages": msgs,
                                 "max_tokens": max_tokens + REASONING_HEADROOM,
                                 "reasoning": {"max_tokens": REASONING_HEADROOM, "exclude": True}}
+        if self.temperature is not None:
+            body["temperature"] = self.temperature
         if len(names) > 1:
             body["models"] = names
         if tools:
@@ -100,7 +104,19 @@ class OpenRouterLLM:
 
 
 def _has_tool_history(messages: list[dict]) -> bool:
-    return any(isinstance(m["content"], list) for m in messages)
+    return any(isinstance(m["content"], list) and any(b.get("type") in ("tool_use", "tool_result") for b in m["content"])
+               for m in messages)
+
+
+def _user_parts(blocks: list[dict]) -> list[dict]:
+    """A student message with an attached image, as OpenAI content parts."""
+    parts: list[dict] = []
+    for b in blocks:
+        if b["type"] == "text" and b.get("text"):
+            parts.append({"type": "text", "text": b["text"]})
+        elif b["type"] == "image":
+            parts.append({"type": "image_url", "image_url": {"url": f"data:{b['media_type']};base64,{b['data']}"}})
+    return parts
 
 
 def _to_messages(messages: list[dict], *, as_text: bool) -> list[dict]:
@@ -124,6 +140,8 @@ def _to_messages(messages: list[dict], *, as_text: bool) -> list[dict]:
                     {"id": b["id"], "type": "function",
                      "function": {"name": b["name"], "arguments": json.dumps(b["input"])}}
                     for b in calls]})
+        elif any(b["type"] == "image" for b in blocks):
+            out.append({"role": "user", "content": _user_parts(blocks)})
         else:
             for b in blocks:
                 if b["type"] != "tool_result":

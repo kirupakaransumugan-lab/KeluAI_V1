@@ -21,7 +21,7 @@ class RagSettings(BaseSettings):
 
     # Vector DB (Qdrant). URL of a server, ":memory:" for tests, or a folder
     # path (e.g. ./var/qdrant-local) for embedded mode without Docker.
-    vector_db_url: str = "http://localhost:6333"
+    vector_db_url: str = "http://127.0.0.1:6333"   # not localhost: on Windows it tries IPv6 first and costs 2 s a call
     vector_db_api_key: str | None = None
     vector_collection: str = "kelu_chunks_v1"   # bump suffix when embedding model changes
 
@@ -43,10 +43,16 @@ class RagSettings(BaseSettings):
     openrouter_api_key: str | None = Field(None, validation_alias=AliasChoices("LLM_API_KEY", "OPENROUTER_API_KEY"))
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "anthropic/claude-sonnet-5.5"      # tutor chat
+    vision_model: str | None = None                     # a turn with an attached image; None = llm_model
+    tamil_model: str | None = None                      # Tamil replies; None = llm_model (free models
+                                                        # write poor Tamil: set a stronger one here)
+    llm_temperature: float = 0.3                        # low: free models drift into other languages
+                                                        # (and garble Tamil) at the default 1.0
+                                                        # (set it if llm_model can't read images)
     quiz_model: str | None = None                       # None = llm_model
     agent_max_tool_rounds: int = 4
     agent_search_first: bool = True             # always search papers first; answer only from them
-    agent_max_output_tokens: int = 1200
+    agent_max_output_tokens: int = 1600         # room for a ```graph block on top of the working
 
     # OCR (scanned past papers -> text) with an OpenRouter vision model.
     ocr_model: str = "anthropic/claude-sonnet-5.5"

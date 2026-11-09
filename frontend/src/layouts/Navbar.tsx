@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useLanguage } from "../app/providers";
 import { ArrowRight, Button } from "../components/ui/Button";
 import { Logo } from "../components/ui/Logo";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function Navbar() {
   const { lang, setLang, t } = useLanguage();
@@ -50,6 +51,7 @@ export function Navbar() {
       </nav>
 
       <div className="nav-actions">
+        <ThemeToggle />
         <div className="lang-toggle" role="group" aria-label={t.nav.language}>
           <button
             type="button"

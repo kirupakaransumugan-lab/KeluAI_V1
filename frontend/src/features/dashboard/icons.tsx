@@ -17,6 +17,7 @@ export const icons = {
   chat: <Icon><path d="M4 12a8 7 0 1 1 3.5 5.8L4 19l1-3.2A6.8 6.8 0 0 1 4 12z" /><path d="M9 12h.01M12 12h.01M15 12h.01" /></Icon>,
   paper: <Icon><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></Icon>,
   chart: <Icon><path d="M5 20v-6M10 20V9M15 20v-9M20 20V5" /></Icon>,
+  flame: <Icon><path d="M12 3c.6 3.6 5.5 6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.2 1.2-3.6 2.5-4.6.3 1.5 1 2.4 2 2.8-.4-3.4-.2-6.3 1-9.2z" /></Icon>,
   bookmark: <Icon><path d="M7 4h10v16l-5-4-5 4z" /></Icon>,
   crown: <Icon><path d="M4 8l4 4 4-6 4 6 4-4-2 10H6z" /></Icon>,
   gear: <Icon><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.5a7 7 0 0 0-2.2 1.3l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.6l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.5a7 7 0 0 0 2.2-1.3l2.3 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></Icon>,
@@ -55,5 +56,16 @@ export const icons = {
   chevronRight: <Icon size={18}><path d="M9 6l6 6-6 6" /></Icon>,
   check: <Icon size={18}><path d="M5 12.5l4.5 4.5L19 7.5" /></Icon>,
   cross: <Icon size={18}><path d="M6 6l12 12M18 6L6 18" /></Icon>,
+  // Admin area
+  users: <Icon><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.5-3.6 3.2-5.5 6.5-5.5s6 1.9 6.5 5.5" /><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.5 5.2" /></Icon>,
+  userPlus: <Icon><circle cx="10" cy="8" r="3.5" /><path d="M3.5 20c.5-3.6 3.2-5.5 6.5-5.5 1.3 0 2.5.3 3.5.9M19 14v6M16 17h6" /></Icon>,
+  card: <Icon><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 10h18M7 15h4" /></Icon>,
+  database: <Icon><ellipse cx="12" cy="6" rx="7.5" ry="3" /><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6" /></Icon>,
+  coins: <Icon><ellipse cx="12" cy="6.5" rx="6.5" ry="2.8" /><path d="M5.5 6.5v5c0 1.5 2.9 2.8 6.5 2.8s6.5-1.3 6.5-2.8v-5M5.5 11.5v5c0 1.5 2.9 2.8 6.5 2.8s6.5-1.3 6.5-2.8v-5" /></Icon>,
+  trendUp: <Icon><path d="M3 20h18M4 16l5-5 4 3 7-7M15 7h5v5" /></Icon>,
+  alert: <Icon><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.5v.01" /></Icon>,
+  cpu: <Icon><rect x="6" y="6" width="12" height="12" rx="2" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" /><path d="M9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5" /></Icon>,
+  arrowDown: <Icon size={16}><path d="M12 5v14M6 13l6 6 6-6" /></Icon>,
+  arrowUp: <Icon size={16}><path d="M12 19V5M6 11l6-6 6 6" /></Icon>,
 };
 

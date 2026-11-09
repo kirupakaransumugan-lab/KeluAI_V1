@@ -1,6 +1,7 @@
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { Fragment, useMemo, type ReactNode } from "react";
+import { Graph } from "./Graph";
 
 // Tutor replies are plain text with LaTeX ($...$, $$...$$, \(...\), \[...\]), **bold**
 // and [S1]-style citations. Newlines are kept by the container's white-space: pre-line.
@@ -32,12 +33,20 @@ const NUMBERED = /^\s*(\d+)[.)]\s+([\s\S]*)$/;
 const CARD = /^(answer|check|final answer|விடை|சரிபார்ப்பு)$/i;
 const AI_NOTE = /^\**AI[-\s]/;                     // "AI-solved – ..." disclaimer (papers-first rule)
 const YOUR_TURN = /^\*\*(your turn|உங்கள் முறை)/i;
+const FENCE = /^\s*```/;                            // ```graph {json} ``` (see Graph.tsx)
 
-/** Lines, but a display-maths block that spans several lines stays one line. */
+/** Lines, but a display-maths block or a ``` fence that spans several lines stays one line. */
 function logicalLines(text: string): string[] {
   const out: string[] = [];
   let buf: string | null = null;
+  let fence = false;
   for (const line of text.replace(/\r\n/g, "\n").split("\n")) {
+    if (fence) {
+      buf += `\n${line}`;
+      if (FENCE.test(line)) { out.push(buf!); buf = null; fence = false; }
+      continue;
+    }
+    if (buf === null && FENCE.test(line)) { buf = line; fence = true; continue; }
     buf = buf === null ? line : `${buf}\n${line}`;
     const openDollar = (buf.match(/\$\$/g) ?? []).length % 2 === 1;
     const openBracket = (buf.match(/\\\[/g) ?? []).length > (buf.match(/\\\]/g) ?? []).length;
@@ -47,13 +56,21 @@ function logicalLines(text: string): string[] {
   return out;
 }
 
-type Block = { kind: "p" | "ul" | "ol"; items: string[]; start?: number };
+type Block = { kind: "p" | "ul" | "ol" | "graph" | "code"; items: string[]; start?: number };
 
 function toBlocks(lines: string[]): Block[] {
   const out: Block[] = [];
   let gap = false;
   for (const line of lines) {
     if (!line.trim()) { gap = true; continue; }
+    if (FENCE.test(line)) {
+      // Checked before list items, so a fence indented under a step still becomes its own block.
+      const [open, ...rest] = line.split("\n");
+      if (rest.length && FENCE.test(rest[rest.length - 1])) rest.pop();
+      out.push({ kind: /^\s*```\s*graph\b/i.test(open) ? "graph" : "code", items: [rest.join("\n")] });
+      gap = false;
+      continue;
+    }
     const last = out[out.length - 1];
     const b = BULLET.exec(line);
     const n = b ? null : NUMBERED.exec(line);
@@ -76,6 +93,8 @@ function toBlocks(lines: string[]): Block[] {
 }
 
 function renderBlock(block: Block, key: number): ReactNode {
+  if (block.kind === "graph") return <Graph key={key} source={block.items[0]} />;
+  if (block.kind === "code") return <pre key={key} className="mt-code">{block.items[0]}</pre>;
   if (block.kind === "p") {
     const text = block.items.join("\n");
     const cls = AI_NOTE.test(text) ? "mt-note" : YOUR_TURN.test(text) ? "mt-turn" : undefined;
@@ -115,6 +134,7 @@ export function MathText({ text, className }: { text: string; className?: string
 /** Text for speech synthesis: maths markup stripped so it isn't read out symbol by symbol. */
 export function speakable(text: string): string {
   return text
+    .replace(/```[\s\S]*?(```|$)/g, " ")
     .replace(/\[S\d+\]/g, "")
     .replace(/\\(frac|dfrac)\{([^}]*)\}\{([^}]*)\}/g, "$2 over $3")
     .replace(/\\int/g, " integral of ").replace(/\\sum/g, " sum of ")

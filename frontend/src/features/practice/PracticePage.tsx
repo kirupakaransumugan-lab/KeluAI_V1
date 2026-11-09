@@ -1,31 +1,36 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
 import { MathText } from "../../components/math/MathText";
 import type { DashboardContext } from "../../layouts/DashboardLayout";
-import { ApiError, tutorApi, type QuizQuestion } from "../../services/api";
+import {
+  ApiError, progressApi, quizzesApi, savedApi, tutorApi,
+  type FullQuizInfo, type PracticeSubject, type QuizQuestion, type SavedQuestion,
+} from "../../services/api";
 import { fill } from "../../utils/dates";
 import { icons } from "../dashboard/icons";
 import {
-  isDone, loadSaved, loadSet, newSet, saveSaved, saveSet,
-  type PracticeSet, type QuestionProgress, type SavedQuestion,
+  FULL_KEY, addQuestion, answeredSteps, attemptAnswers, clearLocalSaved, emptySet, failSlot, fullSet, isDone,
+  loadLocalSaved, loadSeen, loadSets, markSeen, quizState, saveSets, score, stepRight,
+  type PracticeSet, type PracticeSets, type QuestionProgress, type QuizState,
 } from "./practiceStore";
+import { FeedbackForm } from "./FeedbackForm";
+import { SubjectPicker } from "./SubjectPicker";
 import { topicGlyph } from "./topicIcon";
 import "../../styles/practice.css";
 
-// Questions come from POST /tutor/quiz: new AI-written questions in the style of real
-// Paper I Part A questions, each with a 3-step guided solve. There is no question bank
-// or progress table yet, so the set and saved questions are kept in this browser.
+// Clicking a topic starts its quiz: the AI writes 5 new questions on it, one request each (POST
+// /tutor/quiz/question), climbing from easiest to hardest, each with a 3-step guided solve and the
+// answer and reasons shown right after it. Writing happens in the background, so the topic list
+// stays in view: a student can start one topic, keep browsing, start another, and open whichever
+// is ready. Questions are never stored on the server: a finished quiz saves only the marks.
+// Exam-year students can also take the whole-syllabus quiz: up to 10 admin-approved questions
+// from the quiz bank, so it starts at once and needs no AI.
 
-type Tab = "all" | "topic" | "daily" | "saved";
-type Panel = "none" | "hints" | "steps";
+type Tab = "all" | "saved";
 
-interface TopicRow {
-  topic: string;
-  indices: number[];
-  solved: number;        // guided steps solved across the topic's questions
-  total: number;
-}
+const CONCURRENCY = 3;    // AI requests at once, across every quiz: free models queue extra ones
+const MAX_WRITING = 3;    // quizzes being written at once: each costs 5 AI requests
 
 function Progress({ value, total }: { value: number; total: number }) {
   const pct = total ? Math.round((value / total) * 100) : 0;
@@ -49,109 +54,301 @@ function Notice({ art, title, text, children }: { art: string; title: string; te
   );
 }
 
+/** Apply `fn` to the quiz whose id is `id`, wherever it is: a result that arrives after its quiz
+ *  was replaced finds nothing, so it can't land in a newer quiz. */
+const mapSet = (all: PracticeSets, id: number, fn: (s: PracticeSet) => PracticeSet): PracticeSets =>
+  Object.fromEntries(Object.entries(all).map(([key, s]) => [key, s.createdAt === id ? fn(s) : s]));
+
 export function PracticePage() {
   const { user } = useOutletContext<DashboardContext>();
   const { lang, t } = useLanguage();
   const p = t.dashboard.practice;
   const navigate = useNavigate();
 
-  const [set, setSet] = useState<PracticeSet | null>(() => loadSet(user.id));
-  const [saved, setSaved] = useState<SavedQuestion[]>(() => loadSaved(user.id));
-  const [tab, setTab] = useState<Tab>("all");
-  const [loading, setLoading] = useState(false);
+  const [sets, setSets] = useState<PracticeSets>(() => loadSets(user.id));
+  const [openKey, setOpenKey] = useState<string | null>(null);     // the quiz in the overlay
+  const [subjects, setSubjects] = useState<PracticeSubject[]>();
+  const [fullQuiz, setFullQuiz] = useState<FullQuizInfo>();
+  const [starting, setStarting] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [saved, setSaved] = useState<SavedQuestion[]>([]);
+  const [savedStatus, setSavedStatus] = useState<"loading" | "ready" | "failed">("loading");
+  const [savedNote, setSavedNote] = useState<string | null>(null);     // a save/remove that failed
+  const [savedQuery, setSavedQuery] = useState("");
+  const [savedTopic, setSavedTopic] = useState("");
+  // The tab lives in the URL (?tab=saved), so the sidebar's "Saved Questions" can link straight
+  // to it and highlight itself, and reload/back keep the tab.
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get("tab") === "saved" ? "saved" : "all";
+  const setTab = (next: Tab) => setParams((prev) => {
+    if (next === "saved") prev.set("tab", "saved");
+    else prev.delete("tab");
+    return prev;
+  }, { replace: true });
   const [error, setError] = useState<string | null>(null);
-  const [panel, setPanel] = useState<Panel>("none");
-  const [wrong, setWrong] = useState<number[]>([]);          // options tried and wrong, this step
-  const [right, setRight] = useState<number | null>(null);   // option picked and right, this step
 
-  useEffect(() => saveSet(user.id, set), [set, user.id]);
-  useEffect(() => saveSaved(user.id, saved), [saved, user.id]);
-
-  const total = set?.questions.length ?? 0;
-  const finished = !!set && set.current >= total;
-  const q: QuizQuestion | undefined = set && !finished ? set.questions[set.current] : undefined;
-  const prog: QuestionProgress | undefined = set && !finished ? set.progress[set.current] : undefined;
-  const doneCount = set ? set.questions.filter((x, i) => isDone(x, set.progress[i])).length : 0;
-  const pct = total ? Math.round((doneCount / total) * 100) : 0;
-
-  const topics = useMemo<TopicRow[]>(() => {
-    if (!set) return [];
-    const rows = new Map<string, TopicRow>();
-    set.questions.forEach((x, i) => {
-      const row = rows.get(x.topic) ?? { topic: x.topic, indices: [], solved: 0, total: 0 };
-      const pr = set.progress[i];
-      const steps = Math.max(x.steps.length, 1);
-      row.indices.push(i);
-      row.total += steps;
-      row.solved += isDone(x, pr) ? steps : Math.min(pr.solved, steps);
-      rows.set(x.topic, row);
+  const loadSubjects = useCallback(() => {
+    quizzesApi.subjects(lang).then((r) => { setSubjects(r.subjects); setFullQuiz(r.full_quiz); }, (err) => {
+      if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });
+      else setError(p.errors.network);
     });
-    return [...rows.values()];
-  }, [set]);
+  }, [lang, navigate, p.errors.network]);
+  useEffect(() => { loadSubjects(); }, [loadSubjects]);
 
-  const resetStep = () => {
-    setWrong([]);
-    setRight(null);
+  useEffect(() => saveSets(user.id, sets), [sets, user.id]);
+
+  // Saved questions come from the server. A list an older version kept in this browser is
+  // uploaded first (repeats are skipped server-side), then cleared here.
+  const loadSavedList = useCallback(async () => {
+    setSavedStatus("loading");
+    try {
+      const local = loadLocalSaved(user.id);
+      if (local.length) {
+        await savedApi.importLocal(local.slice(0, 200).map(({ topic, question, answer }) => ({ topic, question, answer })));
+        clearLocalSaved(user.id);
+      }
+      setSaved((await savedApi.list()).questions);
+      setSavedStatus("ready");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });
+      else setSavedStatus("failed");
+    }
+  }, [user.id, navigate]);
+  useEffect(() => { loadSavedList(); }, [loadSavedList]);
+
+  // Each finished quiz goes to the server for the progress report. `recorded` is stored with it,
+  // so a save that failed is tried again on the next visit; the server ignores repeats.
+  const saving = useRef(new Set<number>());
+  useEffect(() => {
+    for (const s of Object.values(sets)) {
+      if (s.submittedAt === null || s.recorded || saving.current.has(s.createdAt)) continue;
+      const id = s.createdAt;
+      const done = () => {
+        setSets((all) => mapSet(all, id, (x) => ({ ...x, recorded: true })));
+        saving.current.delete(id);
+        loadSubjects();                      // this quiz's marks are in: show the new score
+      };
+      const answers = attemptAnswers(s);
+      if (!answers.length) {
+        done();
+        continue;
+      }
+      saving.current.add(id);
+      progressApi.saveAttempt(id, s.lang, answers).then(done, () => { saving.current.delete(id); });
+    }
+  }, [sets, loadSubjects]);
+
+  const errorText = (err: unknown) => {
+    const code = err instanceof ApiError ? err.code : "network";
+    return code === "no_questions_indexed" ? p.errors.notIndexed
+      : code === "tutor_not_configured" ? p.errors.notConfigured
+      : code === "no_bank_questions" ? p.errors.noFullQuiz
+      : code === "full_quiz_locked" ? p.errors.fullLocked
+      : code === "network" ? p.errors.network : p.errors.failed;
   };
 
+  // ---------- Question queue ----------
+  // The AI writes one question per request, CONCURRENCY at a time across every quiz, oldest quiz
+  // first. A question is never asked for twice while the page is open: a request can end before
+  // React applies its result, and each repeat is a real AI call.
+  const inFlight = useRef(new Set<string>());
+  const requested = useRef(new Set<string>());
+  const [, bump] = useState(0);                              // re-run the queue when a request ends
+
+  useEffect(() => {
+    const jobs = Object.values(sets).sort((a, b) => a.createdAt - b.createdAt)
+      .flatMap((s) => s.todo.map((slot) => ({ s, slot, key: `${s.createdAt}:${slot}` })))
+      .filter((j) => !requested.current.has(j.key));
+    for (const { s, slot, key } of jobs.slice(0, Math.max(0, CONCURRENCY - inFlight.current.size))) {
+      const id = s.createdAt;
+      inFlight.current.add(key);
+      requested.current.add(key);
+      tutorApi.quizQuestion(s.lang, slot, s.topic)
+        .then((r) => setSets((all) => mapSet(all, id, (x) => addQuestion(x, slot, r.question))))
+        .catch((err) => {
+          if (err instanceof ApiError && err.status === 401) {
+            navigate("/login", { replace: true });
+            return;
+          }
+          // Nothing indexed or AI not set up: every other question would fail the same way.
+          const fatal = err instanceof ApiError && (err.code === "no_questions_indexed" || err.code === "tutor_not_configured");
+          setSets((all) => mapSet(all, id, (x) => failSlot(x, fatal ? "all" : slot)));
+          setError(errorText(err));
+        })
+        .finally(() => {
+          inFlight.current.delete(key);
+          bump((n) => n + 1);
+        });
+    }
+  });   // every render: cheap, and only starts requests for questions not already asked for
+
+  const states: Record<string, QuizState | null> = Object.fromEntries(
+    Object.entries(sets).map(([key, s]) => [key, quizState(s)]));
+  const nameOf = (key: string) => (key === FULL_KEY ? p.fullTitle
+    : subjects?.find((s) => s.key === key)?.name[lang] ?? key);
+
+  /** A new quiz on this topic, written in the background. Nothing opens: the topic's tile shows
+   *  when it is ready, and the student keeps browsing meanwhile. */
+  const startTopic = (key: string) => {
+    const writing = Object.entries(sets).filter(([k, s]) => k !== key && s.todo.length > 0).length;
+    if (writing >= MAX_WRITING) {
+      setError(fill(p.errors.tooMany, { n: MAX_WRITING }));
+      return;
+    }
+    setError(null);
+    setSets((all) => ({ ...all, [key]: emptySet(lang, key) }));
+  };
+
+  /** A topic was clicked: open its quiz if one is under way, otherwise start a new one. */
+  const pickTopic = (key: string) => {
+    const state = states[key];
+    if (state && state.state !== "done") setOpenKey(key);
+    else startTopic(key);
+  };
+
+  // The dashboard's study plan and "Needs work" link here with ?topic=<key>: act on it once the
+  // subjects are known, then drop it so a reload doesn't start another quiz.
+  const linkedTopic = params.get("topic");
+  useEffect(() => {
+    if (!linkedTopic || !subjects) return;
+    if (subjects.some((s) => s.key === linkedTopic)) pickTopic(linkedTopic);
+    setParams((prev) => { prev.delete("topic"); return prev; }, { replace: true });
+  }, [linkedTopic, subjects]);   // eslint-disable-line react-hooks/exhaustive-deps -- once per link
+
+  // The home page's "Start quiz" links here with ?start=full once it knows the student may take
+  // the 10-question quiz. The server still refuses anyone else (full_quiz_locked).
+  const startParam = params.get("start");
+  useEffect(() => {
+    if (startParam !== "full" || !fullQuiz) return;
+    if (fullQuiz.allowed) void startFull();
+    setParams((prev) => { prev.delete("start"); return prev; }, { replace: true });
+  }, [startParam, fullQuiz]);   // eslint-disable-line react-hooks/exhaustive-deps -- once per link
+
+  /** The whole-syllabus quiz: stored questions, avoiding ones this student has seen. */
+  const startFull = async () => {
+    const state = states[FULL_KEY];
+    if (state && state.state !== "done") {
+      setOpenKey(FULL_KEY);
+      return;
+    }
+    setStarting(true);
+    setError(null);
+    try {
+      const { questions } = await tutorApi.fullQuiz(lang, loadSeen(user.id));
+      markSeen(user.id, questions.map((q) => q.bank_id));
+      setSets((all) => ({ ...all, [FULL_KEY]: fullSet(lang, questions) }));
+      setTab("all");
+      setOpenKey(FULL_KEY);
+    } catch (err) {
+      setError(errorText(err));
+    }
+    setStarting(false);
+  };
+
+  // ---------- The open quiz ----------
+  const set: PracticeSet | undefined = openKey ? sets[openKey] : undefined;
+  const quizOpen = !!set;
+  /** Change the open quiz. Its id is taken now, so a quiz replaced meanwhile is left alone. */
+  const updateOpen = (fn: (s: PracticeSet) => PracticeSet) => {
+    if (set) setSets((all) => mapSet(all, set.createdAt, fn));
+  };
+
+  const questions = set?.questions ?? [];
+  const progress = set?.progress ?? [];
+  const current = set?.current ?? 0;
+  const written = questions.length;
+  const total = written + (set?.held.length ?? 0) + (set?.todo.length ?? 0);
+  const writing = (set?.todo.length ?? 0) > 0;
+  const submitted = !!set && set.submittedAt !== null;
+  const waiting = current >= written && writing;              // student is ahead of the AI
+  const q: QuizQuestion | undefined = questions[current];
+  const prog: QuestionProgress | undefined = progress[current];
+  const doneCount = questions.filter((x, i) => isDone(x, progress[i])).length;
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  const unanswered = progress.reduce((n, pr, i) => n + questions[i].steps.length - answeredSteps(pr), 0);
+  const result = set ? score(set) : { steps: 0, right: 0, perfect: 0, questions: 0, pct: 0 };
+  const onLast = current + 1 >= total;
+
+  const close = () => setOpenKey(null);
   const go = (index: number) => {
-    if (!set) return;
-    setSet({ ...set, current: index });
-    setPanel("none");
-    resetStep();
+    updateOpen((s) => ({ ...s, current: Math.max(0, index) }));
+    modalRef.current?.querySelector(".pr-modal-body")?.scrollTo({ top: 0 });
   };
+
+  /** "New quiz" after finishing: the same topic again, written while the overlay stays open. */
+  const startAgain = () => {
+    if (!set) return;
+    if (set.full) void startFull();
+    else startTopic(set.topic);
+  };
+
+  // While the overlay is open: Esc closes it, focus moves into it (screen readers and the
+  // keyboard start inside the quiz), and the page behind does not scroll.
+  useEffect(() => {
+    if (!quizOpen) return;
+    modalRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenKey(null); };
+    const root = document.documentElement, before = root.style.overflow;
+    root.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      root.style.overflow = before;
+    };
+  }, [quizOpen]);
 
   const updateProgress = (fn: (pr: QuestionProgress) => QuestionProgress) =>
-    setSet((s) => s && { ...s, progress: s.progress.map((pr, i) => (i === s.current ? fn(pr) : pr)) });
+    updateOpen((s) => ({ ...s, progress: s.progress.map((pr, i) => (i === s.current ? fn(pr) : pr)) }));
 
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    setTab("all");
-    try {
-      const r = await tutorApi.quiz(lang);
-      setSet(newSet(r.questions, lang));
-      setPanel("none");
-      resetStep();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        navigate("/login", { replace: true });
-        return;
-      }
-      const code = err instanceof ApiError ? err.code : "network";
-      setError(code === "no_questions_indexed" ? p.errors.notIndexed
-        : code === "tutor_not_configured" ? p.errors.notConfigured
-        : code === "network" ? p.errors.network : p.errors.failed);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Saving is offered on the results only: a saved question shows its answer in the Saved tab.
+  // Both directions are optimistic: the bookmark flips at once and flips back if the server says no.
+  const busySave = useRef(new Set<string>());
+  const isSaved = (x: QuizQuestion) => saved.some((s) => s.question === x.question);
+  const failSave = (err: unknown) => setSavedNote(
+    err instanceof ApiError && err.code === "saved_limit" ? p.savedList.limit : p.savedList.saveFailed);
 
-  const isSaved = !!q && saved.some((s) => s.id === q.question);
-  const toggleSave = () => {
-    if (!q) return;
-    setSaved((list) => isSaved ? list.filter((s) => s.id !== q.question)
-      : [{ id: q.question, topic: q.topic, question: q.question, answer: q.answer, savedAt: Date.now() }, ...list]);
+  const removeSaved = (row: SavedQuestion) => {
+    setSavedNote(null);
+    setSaved((list) => list.filter((s) => s.id !== row.id));
+    if (row.id < 0) return;                                   // still being saved: nothing on the server yet
+    savedApi.remove(row.id).catch((err) => {
+      if (err instanceof ApiError && err.status === 404) return;     // already gone
+      setSaved((list) => [row, ...list]);
+      failSave(err);
+    });
   };
 
-  const showHint = () => {
-    if (!q || !prog) return;
-    setPanel("hints");
-    if (prog.hints < q.steps.length) updateProgress((pr) => ({ ...pr, hints: pr.hints + 1 }));
+  const toggleSave = (x: QuizQuestion) => {
+    const existing = saved.find((s) => s.question === x.question);
+    if (existing) return removeSaved(existing);
+    if (busySave.current.has(x.question)) return;
+    busySave.current.add(x.question);
+    setSavedNote(null);
+    const temp: SavedQuestion = { id: -Date.now(), topic: x.topic, question: x.question, answer: x.answer,
+      saved_at: new Date().toISOString() };
+    setSaved((list) => [temp, ...list]);
+    savedApi.save({ topic: x.topic, question: x.question, answer: x.answer })
+      .then((row) => setSaved((list) => [row, ...list.filter((s) => s.id !== temp.id && s.id !== row.id)]))
+      .catch((err) => { setSaved((list) => list.filter((s) => s.id !== temp.id)); failSave(err); })
+      .finally(() => busySave.current.delete(x.question));
   };
 
-  const pick = (i: number) => {
-    if (!q || !prog || right !== null || wrong.includes(i)) return;
-    if (q.steps[prog.solved].options[i].correct) setRight(i);
-    else setWrong((w) => [...w, i]);
+  /** Pick option `option` for step `step` of the current question. */
+  const choose = (step: number, option: number) => {
+    if (submitted || prog?.checked) return;
+    updateProgress((pr) => ({ picks: pr.picks.map((x, i) => (i === step ? option : x)) }));
   };
 
-  const nextStep = () => {
-    updateProgress((pr) => ({ ...pr, solved: pr.solved + 1 }));
-    resetStep();
+  /** A subject quiz: lock this question and show its answer and reasons. */
+  const checkAnswer = () => {
+    updateProgress((pr) => ({ ...pr, checked: true }));
+    modalRef.current?.querySelector(".pr-modal-body")?.scrollTo({ top: 0 });
   };
 
-  const askFormula = () => q && navigate(`/dashboard/tutor?q=${encodeURIComponent(fill(p.formulaAsk, { q: q.question }))}`);
+  const finishQuiz = () => {
+    updateOpen((s) => ({ ...s, submittedAt: Date.now(), current: 0 }));
+    modalRef.current?.querySelector(".pr-modal-body")?.scrollTo({ top: 0 });
+  };
 
   const modelledOn = (x: QuizQuestion) => {
     const m = x.modelled_on;
@@ -159,237 +356,300 @@ export function PracticePage() {
   };
 
   // ---------- Sections ----------
-  const tabs: { key: Tab | "papers"; label: string; icon: ReactNode }[] = [
+  const tabs: { key: Tab; label: string; icon: ReactNode }[] = [
     { key: "all", label: p.tabs.all, icon: icons.grid },
-    { key: "topic", label: p.tabs.topic, icon: icons.layers },
-    { key: "papers", label: p.tabs.papers, icon: icons.paper },
-    { key: "daily", label: p.tabs.daily, icon: icons.calendar },
     { key: "saved", label: p.tabs.saved, icon: icons.bookmark },
   ];
 
-  const startOrError = (
-    <section className="pr-card pr-wide">
-      {loading ? (
-        <Notice art="/dashboard/bear-pencil.png" title={p.generating} text={p.generatingText}>
-          <span className="pr-dots" aria-hidden="true"><i /><i /><i /></span>
-        </Notice>
-      ) : (
-        <Notice art="/dashboard/bear-cheer.png" title={p.startTitle} text={p.startText}>
-          {error && <p className="pr-error" role="alert">{error}</p>}
-          <button type="button" className="pr-btn-primary" onClick={generate}>{p.start} {icons.arrowRight}</button>
-        </Notice>
-      )}
-    </section>
-  );
+  const statusText = (s: QuizState) => (
+    s.state === "writing" ? fill(p.running.writing, { n: s.ready, total: s.total })
+      : s.state === "ready" ? p.running.ready
+      : s.state === "answering" ? fill(p.running.answering, { n: s.answered, total: s.total })
+      : fill(p.running.done, { pct: s.pct }));
 
-  const topicList = (
-    <section className="pr-card pr-topics">
-      <h2 className="pr-card-title"><span className="db-plum">{icons.book}</span>{p.topics}</h2>
-      <div className="pr-topic-list">
-        {topics.map((row) => {
-          const active = row.indices.includes(set!.current);
-          return (
-            <button key={row.topic} type="button" className={`pr-topic${active ? " active" : ""}`}
-              aria-current={active ? "true" : undefined}
-              onClick={() => go(row.indices.find((i) => !isDone(set!.questions[i], set!.progress[i])) ?? row.indices[0])}>
-              <span className="pr-glyph" aria-hidden="true">{topicGlyph(row.topic)}</span>
-              <span className="pr-topic-copy">
-                <strong>{row.topic}</strong>
-                <Progress value={row.solved} total={row.total} />
-              </span>
-              <span className="pr-topic-count">{row.solved} / {row.total}</span>
-              {icons.chevronRight}
+  // Every quiz not finished yet, newest first, so the student can come back to any of them.
+  const running = Object.entries(sets)
+    .flatMap(([key, s]) => {
+      const state = states[key];
+      return state && state.state !== "done" ? [{ key, state, created: s.createdAt }] : [];
+    })
+    .sort((a, b) => b.created - a.created);
+
+  const runningStrip = running.length > 0 && (
+    <section className="pr-running" aria-label={p.running.title}>
+      <h2 className="pr-choose-title">{p.running.title}</h2>
+      <div className="pr-running-list">
+        {running.map(({ key, state }) => (
+          <article key={key} className={`pr-card pr-run ${state.state}`}>
+            <span className="pr-glyph" aria-hidden="true">{key === FULL_KEY ? "Σ" : topicGlyph(nameOf(key))}</span>
+            <div className="pr-run-copy">
+              <strong>{nameOf(key)}</strong>
+              <span>{statusText(state)}</span>
+              <Progress value={state.state === "writing" ? state.ready : state.answered} total={state.total} />
+            </div>
+            <button type="button" className={state.state === "writing" ? "pr-btn-outline pr-btn-sm" : "pr-btn-primary pr-btn-sm"}
+              onClick={() => setOpenKey(key)}>
+              {state.state === "answering" ? p.running.continueQuiz : p.running.open}
             </button>
-          );
-        })}
+          </article>
+        ))}
       </div>
     </section>
   );
 
-  const questionPanel = q && prog && (
-    <section className="pr-card pr-question">
-      <header className="pr-q-head">
-        <div>
-          <span className="pr-chip">{q.topic}</span>
-          <h2>{p.questionsTitle}</h2>
-        </div>
-        <div className="pr-q-progress">
-          <span>{fill(p.progress, { n: doneCount, total })}</span>
-          <div><Progress value={doneCount} total={total} /><b>{pct}%</b></div>
-        </div>
-      </header>
+  const picker = <SubjectPicker subjects={subjects} fullQuiz={fullQuiz} fullState={states[FULL_KEY] ?? null}
+    states={states} statusText={statusText} starting={starting} error={error} onPick={pickTopic}
+    onNewQuiz={startTopic} onStartFull={startFull} />;
 
+  // ---------- The quiz ----------
+  // Every step of the question with its four options. A subject quiz shows the answer and
+  // reasons after "Check answer"; the whole-syllabus quiz shows nothing until "Finish quiz".
+  const questionPanel = q && prog && set && (
+    <>
       <article className="pr-q-card">
         <div className="pr-q-top">
-          <span className="pr-q-num">{fill(p.qLabel, { n: set!.current + 1 })}</span>
-          <button type="button" className={`pr-save${isSaved ? " on" : ""}`} onClick={toggleSave}
-            aria-pressed={isSaved} aria-label={isSaved ? p.unsave : p.save} title={isSaved ? p.unsave : p.save}>
-            {isSaved ? icons.bookmarkFilled : icons.bookmark}
-          </button>
+          <span className="pr-q-num">{fill(p.qLabel, { n: current + 1 })}</span>
+          {!set.full && <span className="pr-level">{fill(p.levelOf, { n: q.number })}</span>}
         </div>
         <MathText className="pr-q-text" text={q.question} />
         <p className="pr-q-meta">{p.aiLabel}{modelledOn(q) && ` · ${modelledOn(q)}`}</p>
       </article>
-
-      <div className="pr-tools">
-        <button type="button" className={`pr-tool pr-tool-hint${panel === "hints" ? " on" : ""}`} onClick={showHint}>
-          {icons.list}{p.hint}
-        </button>
-        {q.steps.length > 0 && (
-          <button type="button" className={`pr-tool pr-tool-step${panel === "steps" ? " on" : ""}`}
-            onClick={() => setPanel(panel === "steps" ? "none" : "steps")}>
-            <span className="db-amber">{icons.bulb}</span>{p.stepHint}
-          </button>
-        )}
-        <button type="button" className="pr-tool pr-tool-formula" onClick={askFormula}>
-          <span className="pr-orange">{icons.book}</span>{p.formula}
-        </button>
-      </div>
-
-      {panel === "hints" && (
-        <div className="pr-panel">
-          <h3>{p.hintsTitle}</h3>
-          <ol>
-            {q.steps.slice(0, prog.hints).map((s, i) => <li key={i}><MathText text={s.title} /></li>)}
-          </ol>
-          {prog.hints >= q.steps.length && <p className="pr-muted">{p.noMoreHints}</p>}
-        </div>
-      )}
-
-      {panel === "steps" && (
-        <div className="pr-panel">
-          {q.steps.slice(0, prog.solved).map((s, i) => (
-            <div key={i} className="pr-step-done">
-              <span className="pr-tick">{icons.check}</span>
-              <div>
-                <strong>{fill(p.stepOf, { n: i + 1, total: q.steps.length })} · <MathText text={s.title} /></strong>
-                <MathText text={s.options.find((o) => o.correct)?.text ?? ""} />
-              </div>
-            </div>
-          ))}
-          {prog.solved < q.steps.length && (() => {
-            const step = q.steps[prog.solved];
-            return (
-              <div className="pr-step">
-                <h3>{fill(p.stepOf, { n: prog.solved + 1, total: q.steps.length })} · <MathText text={step.title} /></h3>
-                <p className="pr-muted">{p.pickWorking}</p>
-                <div className="pr-options">
-                  {step.options.map((o, i) => {
-                    const state = right === i ? "right" : wrong.includes(i) ? "wrong" : "";
-                    return (
-                      <button key={i} type="button" className={`pr-option ${state}`} onClick={() => pick(i)}
-                        disabled={right !== null && right !== i} aria-pressed={!!state}>
-                        <MathText text={o.text} />
-                        {state && <span className="pr-why">{state === "right" ? icons.check : icons.cross}<MathText text={o.why} /></span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                {right !== null ? (
-                  <div className="pr-feedback ok">
-                    <span>{p.correct}</span>
-                    <button type="button" className="pr-btn-primary pr-btn-sm" onClick={nextStep}>
-                      {prog.solved + 1 < q.steps.length ? p.next : p.showAnswer} {icons.arrowRight}
-                    </button>
-                  </div>
-                ) : wrong.length > 0 && <p className="pr-feedback bad">{p.tryAgain}</p>}
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {isDone(q, prog) ? (
-        <div className="pr-answer">
-          <strong>{p.answer}</strong>
-          <MathText text={q.answer} />
-        </div>
-      ) : (
-        <button type="button" className="pr-link" onClick={() => updateProgress((pr) => ({ ...pr, revealed: true }))}>
-          {p.showAnswer}
-        </button>
-      )}
-
-      <footer className="pr-nav">
-        <button type="button" className="pr-btn-outline" onClick={() => go(set!.current - 1)} disabled={set!.current === 0}>
-          {icons.arrowLeft}{p.previous}
-        </button>
-        <span>{fill(p.of, { n: set!.current + 1, total })}</span>
-        <button type="button" className="pr-btn-primary" onClick={() => go(set!.current + 1)}>
-          {set!.current + 1 < total ? p.continue : p.finish} {icons.arrowRight}
-        </button>
-      </footer>
-    </section>
+      <p className="pr-muted pr-exam-note">{set.full ? p.examNote : p.instantNote}</p>
+      {q.steps.map((step, j) => (
+        <fieldset key={j} className="pr-panel pr-step">
+          <legend className="pr-step-title">
+            {fill(p.stepOf, { n: j + 1, total: q.steps.length })} · <MathText text={step.title} />
+          </legend>
+          <div className="pr-options" role="radiogroup">
+            {step.options.map((o, i) => {
+              const on = prog.picks[j] === i;
+              return (
+                <button key={i} type="button" role="radio" aria-checked={on}
+                  className={`pr-option${on ? " picked" : ""}`} onClick={() => choose(j, i)}>
+                  <span className="pr-option-mark" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
+                  <MathText text={o.text} />
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
+    </>
   );
 
-  const finishedPanel = (
-    <section className="pr-card pr-question">
-      <Notice art="/dashboard/bear-cheer.png" title={p.doneTitle} text={fill(p.doneText, { n: doneCount, total })}>
-        <div className="pr-row">
-          <button type="button" className="pr-btn-outline" onClick={() => go(0)}>{icons.arrowLeft}{p.previous}</button>
-          <button type="button" className="pr-btn-primary" onClick={generate} disabled={loading}>{p.newSet} {icons.arrowRight}</button>
+  // One question's marking: the student's pick at each step and why it is right or wrong and,
+  // for a wrong step, the correct working and why. Shown after each question and in the results.
+  const resultCard = (x: QuizQuestion, i: number) => {
+    const pr = progress[i];
+    const r = x.steps.filter((_, j) => stepRight(x, pr, j)).length;
+    return (
+      <article key={i} className="pr-result">
+        <header className="pr-result-head">
+          <span className="pr-q-num">{fill(p.qLabel, { n: i + 1 })}</span>
+          <span className="pr-chip">{x.topic}</span>
+          <span className={`pr-result-tally${r === x.steps.length ? " all" : ""}`}>
+            {fill(p.stepsTally, { n: r, total: x.steps.length })}
+          </span>
+          <button type="button" className={`pr-save${isSaved(x) ? " on" : ""}`} onClick={() => toggleSave(x)}
+            aria-pressed={isSaved(x)} aria-label={isSaved(x) ? p.unsave : p.save} title={isSaved(x) ? p.unsave : p.save}>
+            {isSaved(x) ? icons.bookmarkFilled : icons.bookmark}
+          </button>
+        </header>
+        <MathText className="pr-q-text" text={x.question} />
+        {x.steps.map((step, j) => {
+          const pick = pr.picks[j];
+          const mine = pick === null ? null : step.options[pick];
+          const ok = stepRight(x, pr, j);
+          const correct = step.options.find((o) => o.correct);
+          return (
+            <div key={j} className={`pr-res-step ${ok ? "ok" : "bad"}`}>
+              <h4>
+                <span className="pr-res-icon" aria-label={ok ? p.right : p.wrong}>{ok ? icons.check : icons.cross}</span>
+                {fill(p.stepOf, { n: j + 1, total: x.steps.length })} · <MathText text={step.title} />
+              </h4>
+              <div className="pr-res-row">
+                <span className="pr-res-label">{p.yourAnswer}</span>
+                {mine ? <MathText text={mine.text} /> : <em className="pr-muted">{p.notAnswered}</em>}
+                {mine?.why && <div className="pr-res-why"><MathText text={mine.why} /></div>}
+              </div>
+              {!ok && correct && (
+                <div className="pr-res-row pr-res-correct">
+                  <span className="pr-res-label">{p.correctStep}</span>
+                  <MathText text={correct.text} />
+                  {correct.why && <div className="pr-res-why"><MathText text={correct.why} /></div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div className="pr-answer">
+          <strong>{p.answer}</strong>
+          <MathText text={x.answer} />
         </div>
-      </Notice>
-    </section>
+        <FeedbackForm question={x} />
+      </article>
+    );
+  };
+
+  const resultsBody = (
+    <>
+      <section className="pr-score">
+        <div className="pr-score-ring" style={{ ["--pct" as string]: `${result.pct}%` }}>
+          <strong>{result.pct}%</strong>
+        </div>
+        <div>
+          <h3>{fill(p.scoreSteps, { n: result.right, total: result.steps })}</h3>
+          <p>{fill(p.scoreQuestions, { n: result.perfect, total: result.questions })}</p>
+        </div>
+      </section>
+      {questions.map(resultCard)}
+    </>
+  );
+
+  const browse = <button type="button" className="pr-btn-outline" onClick={close}>{p.running.browse}</button>;
+
+  // Nothing to show yet: still writing Q1, or every question failed.
+  const emptyBody = writing ? (
+    <Notice art="/dashboard/bear-pencil.png" title={p.generating} text={p.generatingText}>
+      <span className="pr-dots" aria-hidden="true"><i /><i /><i /></span>
+      <div className="pr-row">{browse}</div>
+    </Notice>
+  ) : (
+    <Notice art="/dashboard/bear-cheer.png" title={p.errors.failed} text={error ?? ""}>
+      <div className="pr-row">{browse}</div>
+    </Notice>
+  );
+
+  // The student is ahead of the AI: this question is still being written.
+  const waitingBody = (
+    <Notice art="/dashboard/bear-pencil.png" title={p.writingNext} text={fill(p.readyCount, { n: written, total })}>
+      <span className="pr-dots" aria-hidden="true"><i /><i /><i /></span>
+      <div className="pr-row">
+        {current > 0 && (
+          <button type="button" className="pr-btn-outline" onClick={() => go(current - 1)}>{icons.arrowLeft}{p.previous}</button>
+        )}
+        {browse}
+      </div>
+    </Notice>
+  );
+
+  // ---------- Focus overlay ----------
+  const quizModal = set && (
+    <div className="pr-modal-scrim" onClick={close}>
+      <div className="pr-modal" role="dialog" aria-modal="true" aria-labelledby="pr-modal-title" tabIndex={-1}
+        ref={modalRef} onClick={(e) => e.stopPropagation()}>
+        <header className="pr-modal-head">
+          <div className="pr-modal-title">
+            <span className="pr-chip">{nameOf(openKey ?? "")}</span>
+            <h2 id="pr-modal-title">{submitted ? p.resultsTitle : p.quizTitle}</h2>
+          </div>
+          {total > 0 && !submitted && (
+            <div className="pr-q-progress">
+              <span>
+                {fill(p.answeredOf, { n: doneCount, total })}
+                {writing && <em className="pr-ready"> · {fill(p.readyCount, { n: written, total })}</em>}
+              </span>
+              <div><Progress value={doneCount} total={total} /><b>{pct}%</b></div>
+            </div>
+          )}
+          <button type="button" className="pr-modal-close" onClick={close} aria-label={p.close} title={p.close}>
+            {icons.cross}
+          </button>
+        </header>
+
+        <div className="pr-modal-body">
+          {written === 0 ? emptyBody : submitted ? resultsBody : waiting ? waitingBody
+            : q && prog?.checked ? resultCard(q, current) : questionPanel}
+        </div>
+
+        {/* Last question, all written: a reminder of unanswered steps before finishing. */}
+        {!submitted && set.full && q && onLast && !writing && unanswered > 0 && (
+          <p className="pr-unanswered" role="status">{fill(p.unansweredWarn, { n: unanswered })}</p>
+        )}
+        {submitted ? (
+          <footer className="pr-nav pr-modal-foot">
+            <button type="button" className="pr-btn-outline" onClick={close}>{p.closeResults}</button>
+            <button type="button" className="pr-btn-primary" onClick={startAgain} disabled={starting}>
+              {set.full ? p.newFullQuiz : p.newSet} {icons.arrowRight}
+            </button>
+          </footer>
+        ) : q && prog && !waiting && (
+          <footer className="pr-nav pr-modal-foot">
+            <button type="button" className="pr-btn-outline" onClick={() => go(current - 1)} disabled={current === 0}>
+              {icons.arrowLeft}{p.previous}
+            </button>
+            <span>{fill(p.of, { n: current + 1, total })}</span>
+            {!set.full && !prog.checked ? (
+              <button type="button" className="pr-btn-primary" onClick={checkAnswer} disabled={prog.picks.some((x) => x === null)}>
+                {p.checkAnswer} {icons.check}
+              </button>
+            ) : onLast && !writing ? (
+              <button type="button" className="pr-btn-primary" onClick={finishQuiz}>{p.finishQuiz} {icons.check}</button>
+            ) : (
+              <button type="button" className="pr-btn-primary" onClick={() => go(current + 1)}>{p.next} {icons.arrowRight}</button>
+            )}
+          </footer>
+        )}
+      </div>
+    </div>
   );
 
   let body: ReactNode;
   if (tab === "saved") {
-    body = saved.length === 0 ? (
+    const sl = p.savedList;
+    const topicsSaved = [...new Set(saved.map((s) => s.topic))].sort();
+    const q = savedQuery.trim().toLowerCase();
+    const shown = saved.filter((s) => (!savedTopic || s.topic === savedTopic)
+      && (!q || s.question.toLowerCase().includes(q) || s.topic.toLowerCase().includes(q)));
+    const savedOn = (iso: string) => new Date(iso).toLocaleDateString(lang === "ta" ? "ta-LK" : "en-GB",
+      { day: "numeric", month: "short", year: "numeric" });
+
+    body = savedStatus === "loading" ? (
+      <p className="pr-saved-status" role="status">{sl.loading}</p>
+    ) : savedStatus === "failed" ? (
+      <p className="pr-saved-status" role="alert">
+        {sl.loadFailed} <button type="button" className="pr-link" onClick={loadSavedList}>{sl.retry}</button>
+      </p>
+    ) : saved.length === 0 ? (
       <section className="pr-card pr-wide">
         <Notice art="/dashboard/bear-cheer.png" title={p.savedEmpty} text={p.savedEmptyText} />
       </section>
     ) : (
-      <div className="pr-saved">
-        {saved.map((s) => (
-          <article key={s.id} className="pr-card pr-saved-card">
-            <div className="pr-q-top">
-              <span className="pr-chip"><span aria-hidden="true">{topicGlyph(s.topic)}</span> {s.topic}</span>
-              <button type="button" className="pr-link" onClick={() => setSaved((l) => l.filter((x) => x.id !== s.id))}>
-                {p.remove}
-              </button>
-            </div>
-            <MathText className="pr-q-text" text={s.question} />
-            <details>
-              <summary>{p.showAnswer}</summary>
-              <MathText text={s.answer} />
-            </details>
-          </article>
-        ))}
-      </div>
-    );
-  } else if (tab === "daily") {
-    body = (
-      <section className="pr-card pr-wide">
-        <Notice art="/dashboard/bear-cheer.png" title={p.dailyTitle} text={p.dailyText}>
-          {set && !loading && <p className="pr-muted">{p.dailyWarn}</p>}
-          {error && <p className="pr-error" role="alert">{error}</p>}
-          <button type="button" className="pr-btn-primary" onClick={generate} disabled={loading}>
-            {loading ? p.generating : p.start} {icons.arrowRight}
-          </button>
-        </Notice>
-      </section>
-    );
-  } else if (!set || loading) {
-    body = startOrError;
-  } else if (tab === "topic") {
-    body = (
-      <div className="pr-topic-grid">
-        {topics.map((row) => (
-          <section key={row.topic} className="pr-card pr-topic-card">
-            <span className="pr-glyph pr-glyph-lg" aria-hidden="true">{topicGlyph(row.topic)}</span>
-            <h3>{row.topic}</h3>
-            <Progress value={row.solved} total={row.total} />
-            <span className="pr-muted">{fill(p.steps, { n: row.solved, total: row.total })}</span>
-            <button type="button" className="pr-btn-outline" onClick={() => { go(row.indices[0]); setTab("all"); }}>
-              {p.practiceTopic} {icons.arrowRight}
-            </button>
-          </section>
-        ))}
-      </div>
+      <>
+        <div className="pr-saved-bar">
+          <strong>{fill(sl.count, { n: saved.length })}</strong>
+          <input type="search" value={savedQuery} onChange={(e) => setSavedQuery(e.target.value)}
+            placeholder={sl.search} aria-label={sl.search} />
+          {topicsSaved.length > 1 && (
+            <select value={savedTopic} onChange={(e) => setSavedTopic(e.target.value)} aria-label={sl.allTopics}>
+              <option value="">{sl.allTopics}</option>
+              {topicsSaved.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          )}
+        </div>
+        {savedNote && <p className="pr-saved-status" role="alert">{savedNote}</p>}
+        {shown.length === 0 ? <p className="pr-saved-status">{sl.noMatch}</p> : (
+          <div className="pr-saved">
+            {shown.map((s) => (
+              <article key={s.id} className="pr-card pr-saved-card">
+                <div className="pr-q-top">
+                  <span className="pr-chip"><span aria-hidden="true">{topicGlyph(s.topic)}</span> {s.topic}</span>
+                  <span className="pr-saved-date">{fill(sl.savedOn, { date: savedOn(s.saved_at) })}</span>
+                  <button type="button" className="pr-link" onClick={() => removeSaved(s)}>{p.remove}</button>
+                </div>
+                <MathText className="pr-q-text" text={s.question} />
+                <details>
+                  <summary>{p.showAnswer}</summary>
+                  <MathText text={s.answer} />
+                </details>
+              </article>
+            ))}
+          </div>
+        )}
+      </>
     );
   } else {
-    body = <div className="pr-grid">{topicList}{finished ? finishedPanel : questionPanel}</div>;
+    body = <>{runningStrip}{picker}</>;
   }
 
   return (
@@ -404,17 +664,16 @@ export function PracticePage() {
       </header>
 
       <nav className="pr-tabs" aria-label={p.title}>
-        {tabs.map((x) => x.key === "papers" ? (
-          <Link key={x.key} to="/dashboard/past-papers" className="pr-tab">{x.icon}{x.label}</Link>
-        ) : (
+        {tabs.map((x) => (
           <button key={x.key} type="button" className={`pr-tab${tab === x.key ? " active" : ""}`}
-            aria-pressed={tab === x.key} onClick={() => setTab(x.key as Tab)}>
+            aria-pressed={tab === x.key} onClick={() => setTab(x.key)}>
             {x.icon}{x.label}
           </button>
         ))}
       </nav>
 
       {body}
+      {quizModal}
     </main>
   );
 }

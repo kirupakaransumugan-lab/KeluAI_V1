@@ -1,9 +1,10 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, SmallInteger, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, SmallInteger, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.clock import utcnow
 from app.core.database import Base
 
 
@@ -43,8 +44,14 @@ class User(Base):
     # Session tokens issued before this moment are rejected (set on password reset).
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     role: Mapped[Role] = mapped_column(_enum(Role, "user_role"), default=Role.student)
+    # An admin can switch an account off (Admin > Students). Off: no log-in, and every
+    # existing session stops working at its next request (get_current_user).
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     terms_accepted_at: Mapped[datetime] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Set in Python (naive UTC, like subscriptions and every comparison in the app); the
+    # server default only covers rows inserted by hand. MySQL's NOW() follows the server's
+    # time zone, which made new sign-ups look hours "in the future" on a +05:30 server.
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     profile: Mapped["StudentProfile"] = relationship(back_populates="user", uselist=False)

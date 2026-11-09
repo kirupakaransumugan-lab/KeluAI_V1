@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -7,9 +8,15 @@ from app.core.clock import utcnow
 from app.core.config import get_settings
 from app.core.google_auth import GoogleIdentity
 from app.core.security import BCRYPT_MAX_BYTES, hash_password, verify_password
+from app.models.password_reset import PasswordResetCode
+from app.models.progress import PracticeAnswer
+from app.models.question_feedback import QuestionFeedback
+from app.models.quiz_job import QuizGenerationJob
+from app.models.saved_question import SavedQuestion
+from app.models.tutor_conversation import TutorConversation
 from app.models.user import Role, StudentProfile, Subscription, SubscriptionStatus, User
 from app.repositories import user_repository
-from app.schemas.auth import RegisterRequest, StudentProfileFields, UserOut
+from app.schemas.auth import RegisterRequest, StudentProfileFields, UpdateProfileRequest, UserOut
 
 
 class EmailTakenError(Exception):
@@ -126,4 +133,73 @@ def to_user_out(user: User) -> UserOut:
         medium=user.profile.medium if user.profile else None,
         al_exam_year=user.profile.al_exam_year if user.profile else None,
         trial_ends_at=trial.ends_at if trial else None,
+        mobile=user.mobile,
+        parent_email=user.profile.parent_email if user.profile else None,
+        has_password=user.password_hash is not None,
     )
+
+
+# ---------- Settings ----------
+
+class WrongPasswordError(Exception):
+    pass
+
+
+class ConfirmationMismatchError(Exception):
+    pass
+
+
+class AdminAccountError(Exception):
+    """Admin accounts are managed with the backend CLI, not deleted from the app."""
+
+
+def _password_ok(user: User, password: str | None) -> bool:
+    return bool(password) and len(password.encode("utf-8")) <= BCRYPT_MAX_BYTES \
+        and verify_password(password, user.password_hash)
+
+
+def update_profile(db: Session, user: User, data: UpdateProfileRequest) -> User:
+    if data.full_name is not None:
+        user.full_name = data.full_name
+    if data.mobile is not None:
+        user.mobile = data.mobile
+    if user.profile:                        # admins have no student profile: these don't apply
+        if data.medium is not None:
+            user.profile.medium = data.medium
+        if data.al_exam_year is not None:
+            user.profile.al_exam_year = data.al_exam_year
+        if data.clear_parent_email:
+            user.profile.parent_email = None
+        elif data.parent_email is not None:
+            user.profile.parent_email = data.parent_email
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(db: Session, user: User, current: str | None, new: str) -> User:
+    """Google-only accounts (no password yet) may set one without a current password."""
+    if user.password_hash is not None and not _password_ok(user, current):
+        raise WrongPasswordError
+    user.password_hash = hash_password(new)
+    user.password_changed_at = utcnow()     # signs out every other session
+    db.commit()
+    return user
+
+
+def delete_account(db: Session, user: User, confirm_email: str, password: str | None) -> None:
+    """Delete the student and everything that belongs to them. Rows are deleted explicitly,
+    not left to ON DELETE CASCADE, so it works the same on every database."""
+    if user.role == Role.admin:
+        raise AdminAccountError
+    if confirm_email.strip().lower() != user.email.lower():
+        raise ConfirmationMismatchError
+    if user.password_hash is not None and not _password_ok(user, password):
+        raise WrongPasswordError
+    uid = user.id
+    for model in (PracticeAnswer, SavedQuestion, TutorConversation, QuestionFeedback, PasswordResetCode, Subscription):
+        db.execute(delete(model).where(model.user_id == uid))
+    db.execute(update(QuizGenerationJob).where(QuizGenerationJob.created_by == uid).values(created_by=None))
+    db.execute(delete(StudentProfile).where(StudentProfile.user_id == uid))
+    db.execute(delete(User).where(User.id == uid))
+    db.commit()
