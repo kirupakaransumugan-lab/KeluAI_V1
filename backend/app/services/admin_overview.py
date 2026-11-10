@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.clock import utcnow
 from app.models.payment import Payment
 from app.models.user import Medium, Role, StudentProfile, Subscription, SubscriptionStatus, User
+from app.services.plans import PAID_KEYS as PAID_PLANS     # monthly, until_exam, class
 
-PAID_PLANS = ("monthly", "annual")
 LATEST = 5
 REVENUE_MONTHS = 6
 

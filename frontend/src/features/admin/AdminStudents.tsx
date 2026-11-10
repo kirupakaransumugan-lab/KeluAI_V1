@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { icons } from "../dashboard/icons";
 import {
-  ApiError, adminApi, type AdminStudentDetail as Detail, type AdminStudentRow, type MediumFilter,
+  ApiError, adminApi, trialEndAfter, type AdminStudentDetail as Detail, type AdminStudentRow, type MediumFilter,
 } from "../../services/api";
 import "../../styles/admin-students.css";
 
@@ -14,7 +14,10 @@ import "../../styles/admin-students.css";
 const PLAN_LABEL: Record<AdminStudentRow["plan_state"], string> = {
   trial: "Free trial", paid: "Paid", expired: "Trial ended", cancelled: "Cancelled",
 };
-const PLAN_NAME: Record<string, string> = { trial: "Free trial", monthly: "Monthly", annual: "Annual" };
+const PLAN_NAME: Record<string, string> = {
+  trial: "Free trial", free: "Free", monthly: "Monthly", until_exam: "Until exam", class: "Class plan",
+  annual: "Annual",       // older payments, before the price list changed
+};
 const SUB_STATUS: Record<string, string> = { trialing: "In trial", active: "Active", expired: "Ended", cancelled: "Cancelled" };
 const MEDIUM: Record<string, string> = { en: "English", ta: "Tamil" };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -413,11 +416,47 @@ function ProgressTab({ d }: { d: Detail }) {
   );
 }
 
-function SubscriptionTab({ d, busy, onSet }: { d: Detail; busy: boolean; onSet: (a: boolean) => void }) {
+/** Gives the student one more calendar month of trial, added after a running trial or from today. */
+function ExtendTrial({ d, onChanged }: { d: Detail; onChanged: (s: Detail["subscription"]) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  const cur = d.subscription.current;
+  if (cur && cur.plan !== "trial" && (cur.status === "active" || cur.status === "trialing")) return null;   // on a paid plan
+  const running = cur?.plan === "trial" && cur.status === "trialing";
+  const ends = trialEndAfter(running ? cur.ends_at : null, { months: 1 });
+  const extend = async () => {
+    setBusy(true);
+    setError(false);
+    try {
+      onChanged(await adminApi.extendTrial(d.student.id, { months: 1 }));
+    } catch {
+      setError(true);
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="ad-st-extend">
+      <button type="button" className="ad-st-btn" disabled={busy || !d.student.is_active} onClick={extend}>
+        {icons.clock}{busy ? "Extending…" : running ? "Extend trial by 1 month" : "Start a 1-month trial"}
+      </button>
+      <small className="ad-muted">
+        {d.student.is_active ? `Trial would end on ${date(ends.toISOString())}.` : "Activate the account first."}
+      </small>
+      {error && <small className="ad-st-extend-error" role="alert">That didn't save. Please try again.</small>}
+    </div>
+  );
+}
+
+function SubscriptionTab({ d, busy, onSet, onChanged }: {
+  d: Detail; busy: boolean; onSet: (a: boolean) => void; onChanged: (s: Detail["subscription"]) => void;
+}) {
   const { history, payments_enabled } = d.subscription;
   return (
     <div className="ad-st-grid">
-      <Panel icon={icons.crown} title="Plan & access"><Access d={d} busy={busy} onSet={onSet} /></Panel>
+      <Panel icon={icons.crown} title="Plan & access">
+        <Access d={d} busy={busy} onSet={onSet} />
+        <ExtendTrial d={d} onChanged={onChanged} />
+      </Panel>
       <Panel icon={icons.history} title="Plan history">
         {history.length ? (
           <div className="ad-table-wrap">
@@ -571,7 +610,9 @@ export function AdminStudentDetail() {
       <div id="ad-st-tabpanel" role="tabpanel" aria-labelledby={`ad-st-tab-${tab}`}>
         {tab === "overview" && <Overview d={d} busy={busy} onSet={onSet} goTab={setTab} />}
         {tab === "progress" && <ProgressTab d={d} />}
-        {tab === "subscription" && <SubscriptionTab d={d} busy={busy} onSet={onSet} />}
+        {tab === "subscription" && (
+          <SubscriptionTab d={d} busy={busy} onSet={onSet} onChanged={(subscription) => setD({ ...d, subscription })} />
+        )}
         {tab === "activity" && <ActivityTab d={d} />}
       </div>
 

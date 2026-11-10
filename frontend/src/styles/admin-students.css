@@ -217,3 +217,9 @@
   .ad-st-search input { width: 100%; }
 }
 .ad-bl-from-student { align-self: flex-start; text-decoration: none; }
+
+/* Extend trial (Subscription tab) */
+.ad-st-extend { display: flex; flex-direction: column; gap: 6px; padding-top: 14px; border-top: 1px solid var(--ad-line); }
+.ad-st-extend .ad-st-btn { align-self: flex-start; }
+.ad-st-extend small { font-size: 13.5px; }
+.ad-st-extend-error { color: var(--ad-red); }

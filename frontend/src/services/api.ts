@@ -34,6 +34,17 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+/** Sends a file as the raw request body (the API takes its name in the query string). */
+async function upload<T>(path: string, file: File): Promise<T> {
+  const res = await fetch(`/api/v1${path}`, {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": file.type || "application/octet-stream" }, body: file,
+  });
+  const data = await res.json().catch(() => undefined);
+  if (!res.ok) throw new ApiError(res.status, (data as { detail?: unknown } | undefined)?.detail);
+  return data as T;
+}
+
 export type Medium = "ta" | "en";
 
 export interface User {
@@ -133,7 +144,24 @@ export const chatsApi = {
   remove: (id: string) => request<void>("DELETE", `/tutor/conversations/${encodeURIComponent(id)}`),
 };
 
-export type PlanKey = "trial" | "monthly" | "annual";
+export type PlanKey = "trial" | "free" | "monthly" | "until_exam" | "class";
+export type PaidPlanKey = "monthly" | "until_exam" | "class";
+/** How a plan bills: free, 30 days, to the student's A/L exam, or per student for 30 days. */
+export type PlanBilling = "free" | "month" | "until_exam" | "student_month";
+
+/** A price-list entry (backend app/services/plans.py). Admins edit names, price and visibility. */
+export interface PlanInfo {
+  key: Exclude<PlanKey, "trial">;
+  billing: PlanBilling;
+  price_lkr: number;
+  name_en: string;
+  name_ta: string;
+  blurb_en: string;
+  blurb_ta: string;
+  is_visible: boolean;
+  highlight: boolean;
+  updated_at: string | null;
+}
 
 export interface SubscriptionRow {
   id: number;
@@ -148,9 +176,15 @@ export interface SubscriptionRow {
 export interface SubscriptionSummary {
   current: SubscriptionRow | null;
   history: SubscriptionRow[];
-  plans: { key: "monthly" | "annual"; price_lkr: number; period: "month" | "year" }[];
+  plans: PlanInfo[];
   payments_enabled: boolean;
 }
+
+/** GET /plans: the public price list (what Admin > Plans set to show). No login needed. */
+export type PublicPlan = Pick<PlanInfo, "key" | "billing" | "price_lkr" | "name_en" | "name_ta" | "blurb_en" | "blurb_ta" | "highlight">;
+export const plansApi = {
+  list: () => request<{ plans: PublicPlan[] }>("GET", "/plans"),
+};
 
 export const subscriptionApi = {
   get: () => request<SubscriptionSummary>("GET", "/subscription"),
@@ -294,7 +328,7 @@ export interface BillingPayment {
   user_id: number;
   student: string;
   email: string | null;
-  plan: "monthly" | "annual";
+  plan: PaidPlanKey | string;
   amount_lkr: number;
   method: PaymentMethod;
   reference: string | null;
@@ -314,7 +348,7 @@ export interface BillingOverview {
 }
 export interface NewPayment {
   user_id: number;
-  plan: "monthly" | "annual";
+  plan: PaidPlanKey;
   amount_lkr: number;
   method: PaymentMethod;
   reference?: string;
@@ -322,12 +356,96 @@ export interface NewPayment {
   paid_at?: string;
 }
 
+/** Admin > Plans: a plan plus how many students are on it now and what it has earned. */
+export interface AdminPlan extends PlanInfo {
+  students: number;
+  revenue_total: number;
+  revenue_30d: number;
+  payments: number;
+}
+export type PlanChanges = Partial<Pick<PlanInfo,
+  "name_en" | "name_ta" | "price_lkr" | "blurb_en" | "blurb_ta" | "is_visible" | "highlight">>;
+
+/** Admin > Knowledge Base (backend app/services/knowledge_base.py). */
+export type KbType = "past_paper" | "marking_scheme" | "syllabus";
+export interface KbDocument {
+  upload_id: number;
+  upload_type: KbType;
+  exam_year: number | null;
+  language: Medium | null;
+  title: string | null;
+  pages: number;
+  chunk_count: number;
+  sections: number;
+}
+export interface KbJob {
+  id: string;
+  kind: "upload" | "retag";
+  filename: string;
+  status: "queued" | "running" | "done" | "failed";
+  stage: string;
+  message: string | null;
+  chunk_count: number | null;
+  upload_id: number | null;
+  started_at: string;
+  finished_at: string | null;
+}
+export interface KbOverview {
+  documents: KbDocument[];
+  totals: { documents: number; chunks: number; years: number; by_type: Record<KbType, number>; by_language: Record<Medium, number> };
+  collection: string;
+  jobs: KbJob[];
+}
+
+/** Admin > Content: syllabus coverage per topic (backend app/services/admin_content.py). */
+export interface ContentTopic {
+  id: number;
+  key: string;
+  strand: "pure" | "applied";
+  name_en: string;
+  name_ta: string;
+  kb_chunks: number;
+  bank: Record<Medium, number>;
+  practice_answers: number;
+  students: number;
+  score: number | null;
+  flags: ("few_examples" | "bank_gap")[];
+}
+export interface ContentOverview {
+  topics: ContentTopic[];
+  totals: { topics: number; few_examples: number; bank_gaps: number; practice_answers: number; unmatched_answers: number };
+  few_examples: number;
+}
+
+export type TrialLength = { days: number } | { months: number };
+
+/** When a trial extended by `length` would end: added after `from` (a running trial's end) or today. */
+export function trialEndAfter(from: string | null, length: TrialLength): Date {
+  const start = new Date(Math.max(Date.now(), from ? Date.parse(from) : 0));
+  if ("days" in length) return new Date(start.getTime() + length.days * 86_400_000);
+  const end = new Date(start);
+  end.setDate(1);
+  end.setMonth(end.getMonth() + length.months);
+  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  end.setDate(Math.min(start.getDate(), lastDay));
+  return end;
+}
+
 export const adminApi = {
+  knowledgeBase: () => request<KbOverview>("GET", "/admin/knowledge-base"),
+  uploadKb: (file: File, lang: Medium) =>
+    upload<KbJob>(`/admin/knowledge-base/upload?filename=${encodeURIComponent(file.name)}&lang=${lang}`, file),
+  removeKb: (uploadId: number) => request<void>("DELETE", `/admin/knowledge-base/${uploadId}`),
+  retagKb: () => request<KbJob>("POST", "/admin/knowledge-base/retag"),
+  content: () => request<ContentOverview>("GET", "/admin/content"),
+  plans:() => request<{ plans: AdminPlan[]; students: number; revenue_days: number }>("GET", "/admin/plans"),
+  updatePlan: (key: PlanInfo["key"], changes: PlanChanges) => request<PlanInfo>("PATCH", `/admin/plans/${key}`, changes),
   billing: (q = "") => request<BillingOverview>("GET", `/admin/billing?q=${encodeURIComponent(q)}`),
   recordPayment: (p: NewPayment) => request<{ id: number; subscription_id: number }>("POST", "/admin/billing/payments", p),
   removePayment: (id: number) => request<void>("DELETE", `/admin/billing/payments/${id}`),
-  extendTrial: (userId: number, days: number) =>
-    request<SubscriptionSummary>("POST", `/admin/billing/students/${userId}/extend-trial`, { days }),
+  /** Days, or calendar months (1 month: 10 Nov -> 10 Dec). */
+  extendTrial: (userId: number, length: TrialLength) =>
+    request<SubscriptionSummary>("POST", `/admin/billing/students/${userId}/extend-trial`, length),
   cancelSubscription: (subId: number) => request<SubscriptionSummary>("POST", `/admin/billing/subscriptions/${subId}/cancel`),
   students: (q: string, medium: MediumFilter) =>
     request<{ students: AdminStudentRow[]; limit: number }>(

@@ -20,6 +20,9 @@ import { AdminComingSoon, AdminOverview } from "../features/admin/AdminOverview"
 import { AdminFeedback } from "../features/admin/AdminFeedback";
 import { AdminQuizBank } from "../features/admin/AdminQuizBank";
 import { AdminPayments } from "../features/admin/AdminPayments";
+import { AdminPlans } from "../features/admin/AdminPlans";
+import { AdminContent } from "../features/admin/AdminContent";
+import { AdminKnowledgeBase } from "../features/admin/AdminKnowledgeBase";
 import { AdminStudentDetail, AdminStudents } from "../features/admin/AdminStudents";
 
 export function AppRouter() {
@@ -53,6 +56,9 @@ export function AppRouter() {
           <Route path="students" element={<AdminStudents />} />
           <Route path="students/:id" element={<AdminStudentDetail />} />
           <Route path="payments" element={<AdminPayments />} />
+          <Route path="plans" element={<AdminPlans />} />
+          <Route path="content" element={<AdminContent />} />
+          <Route path="knowledge-base" element={<AdminKnowledgeBase />} />
           <Route path="quiz-bank" element={<AdminQuizBank />} />
           <Route path="feedback" element={<AdminFeedback />} />
           <Route path="*" element={<AdminComingSoon />} />

@@ -67,7 +67,7 @@
 .ad-bl-find small, .ad-bl-chosen small { color: var(--muted); font-size: 13px; }
 .ad-bl-chosen { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--ad-st-tile); }
 .ad-bl-chosen > span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
-.ad-bl-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ad-bl-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .ad-bl-plans button, .ad-bl-days button {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--ad-line);
   border-radius: 14px; background: var(--s-ffffff); color: var(--ink); font: inherit; text-align: left; cursor: pointer;

@@ -20,6 +20,7 @@ const STATUS: Record<Overview["latest_signups"][number]["status"], string> = {
   trial: "In trial", paid: "Paid", expired: "Trial ended", cancelled: "Cancelled",
 };
 
+const PLAN_LABEL: Record<string, string> = { monthly: "Monthly", until_exam: "Until exam", class: "Class plan", annual: "Annual" };
 const num = (v: number) => v.toLocaleString("en-LK");
 const when = (iso: string) => new Date(iso).toLocaleString("en-LK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -232,7 +233,7 @@ export function AdminOverview() {
                     {data.latest_payments.map((p) => (
                       <tr key={p.id}>
                         <td>{p.full_name}</td>
-                        <td>{p.plan === "annual" ? "Annual" : "Monthly"}</td>
+                        <td>{PLAN_LABEL[p.plan] ?? p.plan}</td>
                         <td className="ad-num">LKR {num(p.amount_lkr)}</td>
                         <td className="ad-nowrap">{when(p.paid_at)}</td>
                       </tr>

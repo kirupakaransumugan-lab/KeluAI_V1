@@ -29,7 +29,11 @@ export function SubscriptionPage() {
 
   const date = (iso: string) => new Date(iso).toLocaleDateString(lang === "ta" ? "ta-LK" : "en-GB",
     { day: "numeric", month: "short", year: "numeric" });
-  const planName = (key: string) => s.planNames[key as keyof typeof s.planNames] ?? key;
+  // Names an admin set on Admin > Plans win; the copy file covers the trial and old plans.
+  const planName = (key: string) => {
+    const p = data?.plans.find((x) => x.key === key);
+    return p ? (lang === "ta" ? p.name_ta : p.name_en) : s.planNames[key as keyof typeof s.planNames] ?? key;
+  };
   const lkr = (n: number) => n.toLocaleString("en-LK");
 
   if (failed) {
@@ -43,9 +47,6 @@ export function SubscriptionPage() {
 
   const cur = data.current;
   const live = !!cur && LIVE.includes(cur.status);
-  const monthly = data.plans.find((p) => p.key === "monthly");
-  const annual = data.plans.find((p) => p.key === "annual");
-  const saving = monthly && annual ? monthly.price_lkr * 12 - annual.price_lkr : 0;
 
   return (
     <main className="db-content ac-page">
@@ -78,22 +79,19 @@ export function SubscriptionPage() {
         )}
         <div className="ac-plans">
           {data.plans.map((p) => {
-            const mine = live && cur?.plan === p.key;
-            const perks = t.pricing.plans[p.key].perks.slice(0, 5);
+            // Free is what a student is on when no plan (not even the trial) is running.
+            const mine = p.billing === "free" ? !live : live && cur?.plan === p.key;
             return (
-              <article key={p.key} className={`ac-card ac-plan${p.key === "annual" ? " best" : ""}${mine ? " mine" : ""}`}>
-                {p.key === "annual" && <span className="ac-ribbon">{s.bestValue}</span>}
+              <article key={p.key} className={`ac-card ac-plan${p.highlight ? " best" : ""}${mine ? " mine" : ""}`}>
+                {p.highlight && <span className="ac-ribbon">{s.bestValue}</span>}
                 <h3>{planName(p.key)}</h3>
                 <p className="ac-price">
-                  <span>LKR</span> <strong>{lkr(p.price_lkr)}</strong> <span>{p.period === "month" ? s.perMonth : s.perYear}</span>
+                  <span>LKR</span> <strong>{lkr(p.price_lkr)}</strong> <span>{s.billing[p.billing]}</span>
                 </p>
-                {p.key === "annual" && saving > 0 && <p className="ac-saving">{fill(s.annualSaving, { n: lkr(saving) })}</p>}
-                <ul>
-                  {perks.map((x) => <li key={x}><span aria-hidden="true">{icons.checks}</span>{x}</li>)}
-                </ul>
+                <p className="ac-blurb">{lang === "ta" ? p.blurb_ta : p.blurb_en}</p>
                 {mine ? (
                   <span className="ac-pill on">{s.yourPlan}</span>
-                ) : (
+                ) : p.billing === "free" ? null : (
                   <button type="button" className="db-btn-primary ac-choose" disabled={!data.payments_enabled}
                     title={data.payments_enabled ? undefined : s.soon}>
                     {data.payments_enabled ? fill(s.choose, { plan: planName(p.key) }) : s.soon}

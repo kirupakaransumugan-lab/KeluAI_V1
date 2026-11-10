@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { icons } from "../dashboard/icons";
 import {
-  ApiError, adminApi, type BillingOverview, type BillingPayment, type BillingRow, type NewPayment, type PaymentMethod,
+  ApiError, adminApi, type BillingOverview, type BillingPayment, type BillingRow, type NewPayment, type PaidPlanKey, type PaymentMethod, type TrialLength, trialEndAfter,
 } from "../../services/api";
 import "../../styles/admin-students.css";
 import "../../styles/admin-billing.css";
+import { BILLING_LABEL } from "./AdminPlans";
 
 // Admin > Subscriptions & Payments. Online payment isn't connected, so payments are recorded
 // here by hand (bank transfer, cash...). Recording one starts the paid plan it bought; removing
@@ -17,9 +18,14 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "expiring", label: "Ending soon" }, { key: "ended", label: "Ended" },
 ];
 const STATE_LABEL: Record<BillingRow["state"], string> = { trial: "Free trial", paid: "Paid", expired: "Trial ended", cancelled: "Cancelled" };
-const PLAN_NAME: Record<string, string> = { trial: "Free trial", monthly: "Monthly", annual: "Annual" };
+const PLAN_NAME: Record<string, string> = {
+  trial: "Free trial", free: "Free", monthly: "Monthly", until_exam: "Until exam", class: "Class plan",
+  annual: "Annual",       // older payments, before the price list changed
+};
 const METHOD: Record<PaymentMethod, string> = { bank_transfer: "Bank transfer", cash: "Cash", card: "Card", other: "Other" };
-const TRIAL_DAYS = [7, 14, 30];
+const TRIAL_OPTIONS: { label: string; length: TrialLength }[] = [
+  { label: "7 days", length: { days: 7 } }, { label: "14 days", length: { days: 14 } }, { label: "1 month", length: { months: 1 } },
+];
 
 const lkr = (n: number) => `LKR ${n.toLocaleString("en-LK")}`;
 const date = (iso: string | null | undefined) =>
@@ -68,8 +74,8 @@ function RecordPayment({ data, preset, onClose, onSaved }: {
   const price = (plan: string) => data.plans.find((p) => p.key === plan)?.price_lkr ?? 0;
   const [studentId, setStudentId] = useState<number | null>(preset);
   const [find, setFind] = useState("");
-  const [plan, setPlan] = useState<"monthly" | "annual">("monthly");
-  const [amount, setAmount] = useState(String(price("monthly")));
+  const [plan, setPlan] = useState<PaidPlanKey>(data.plans[0]?.key as PaidPlanKey ?? "monthly");
+  const [amount, setAmount] = useState(String(data.plans[0]?.price_lkr ?? ""));
   const [method, setMethod] = useState<PaymentMethod>("bank_transfer");
   const [reference, setReference] = useState("");
   const [paidOn, setPaidOn] = useState(todayLk());
@@ -86,7 +92,7 @@ function RecordPayment({ data, preset, onClose, onSaved }: {
     return data.subscriptions.filter((s) => s.full_name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)).slice(0, 6);
   }, [find, data.subscriptions]);
 
-  const choosePlan = (p: "monthly" | "annual") => {
+  const choosePlan = (p: PaidPlanKey) => {
     // Keep a typed discount, but follow the price list when the amount is still a list price.
     if (data.plans.some((x) => String(x.price_lkr) === amount)) setAmount(String(price(p)));
     setPlan(p);
@@ -148,8 +154,8 @@ function RecordPayment({ data, preset, onClose, onSaved }: {
           <div className="ad-bl-plans" role="radiogroup" aria-label="Plan">
             {data.plans.map((p) => (
               <button key={p.key} type="button" role="radio" aria-checked={plan === p.key}
-                className={plan === p.key ? "active" : ""} onClick={() => choosePlan(p.key)}>
-                <strong>{PLAN_NAME[p.key]}</strong><small>{lkr(p.price_lkr)} / {p.period}</small>
+                className={plan === p.key ? "active" : ""} onClick={() => choosePlan(p.key as PaidPlanKey)}>
+                <strong>{p.name_en}{p.is_visible ? "" : " (hidden)"}</strong><small>{lkr(p.price_lkr)} · {BILLING_LABEL[p.billing]}</small>
               </button>
             ))}
           </div>
@@ -243,14 +249,15 @@ function RowActions({ row, onPick }: { row: BillingRow; onPick: (p: Pending) => 
 }
 
 function Confirm({ pending, onClose, onDone }: { pending: Exclude<Pending, { kind: "record" }>; onClose: () => void; onDone: () => void }) {
-  const [days, setDays] = useState(7);
+  const [option, setOption] = useState(TRIAL_OPTIONS.length - 1);      // 1 month
+  const length = TRIAL_OPTIONS[option];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const run = async () => {
     setBusy(true);
     setError(undefined);
     try {
-      if (pending.kind === "trial") await adminApi.extendTrial(pending.row.user_id, days);
+      if (pending.kind === "trial") await adminApi.extendTrial(pending.row.user_id, length.length);
       else if (pending.kind === "cancel" && pending.row.current) await adminApi.cancelSubscription(pending.row.current.id);
       else if (pending.kind === "remove") await adminApi.removePayment(pending.payment.id);
       onDone();
@@ -267,16 +274,17 @@ function Confirm({ pending, onClose, onDone }: { pending: Exclude<Pending, { kin
       <Modal title={`Give ${pending.row.full_name.split(" ")[0]} more trial days`} icon={icons.clock} onClose={onClose}>
         <p>{running && cur ? `The trial now ends on ${date(cur.ends_at)}; the days are added after that.`
           : "Their trial has ended, so a new one starts today."}</p>
-        <div className="ad-bl-days" role="radiogroup" aria-label="Days">
-          {TRIAL_DAYS.map((d) => (
-            <button key={d} type="button" role="radio" aria-checked={days === d} className={days === d ? "active" : ""}
-              onClick={() => setDays(d)}>{d} days</button>
+        <div className="ad-bl-days" role="radiogroup" aria-label="Extra trial time">
+          {TRIAL_OPTIONS.map((o, i) => (
+            <button key={o.label} type="button" role="radio" aria-checked={option === i} className={option === i ? "active" : ""}
+              onClick={() => setOption(i)}>{o.label}</button>
           ))}
         </div>
+        <p className="ad-muted">New trial end: <strong>{date(trialEndAfter(running && cur ? cur.ends_at : null, length.length).toISOString())}</strong></p>
         {error && <p className="ad-bank-warn" role="alert">{error}</p>}
         <div className="ad-st-modal-foot">
           <button type="button" className="db-btn-outline" onClick={onClose}>Cancel</button>
-          <button type="button" className="ad-st-btn danger" disabled={busy} onClick={run}>{busy ? "Saving…" : `Add ${days} days`}</button>
+          <button type="button" className="ad-st-btn danger" disabled={busy} onClick={run}>{busy ? "Saving…" : `Add ${length.label}`}</button>
         </div>
       </Modal>
     );

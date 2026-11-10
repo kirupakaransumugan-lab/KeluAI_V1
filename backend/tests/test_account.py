@@ -78,7 +78,7 @@ def test_new_student_is_on_the_trial(client):
     assert body["current"]["plan"] == "trial" and body["current"]["status"] == "trialing"
     assert body["current"]["days_left"] in (13, 14)
     assert body["payments_enabled"] is False
-    assert [p["key"] for p in body["plans"]] == ["monthly", "annual"]
+    assert [p["key"] for p in body["plans"]] == ["free", "monthly", "until_exam", "class"]
 
 
 def test_a_plan_past_its_end_counts_as_expired():

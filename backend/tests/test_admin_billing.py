@@ -112,8 +112,34 @@ def test_paid_at_is_kept_as_given(client):
 
 def test_overview_counts_revenue_and_lists_payments(client):
     kavin = _setup(client)
-    _pay(client, kavin, amount=4999, plan="annual")
+    _pay(client, kavin, amount=4999, plan="class")
     o = client.get("/api/v1/admin/overview?days=30").json()
     assert o["kpis"]["revenue_lkr"]["value"] == 4999
     assert len(o["revenue_per_month"]) == 6 and o["revenue_per_month"][-1]["amount_lkr"] == 4999
-    assert o["latest_payments"][0]["plan"] == "annual"
+    assert o["latest_payments"][0]["plan"] == "class"
+
+
+def test_extend_trial_by_a_calendar_month(client):
+    kavin = _setup(client)
+    before = datetime.fromisoformat(_row(client, kavin)["current"]["ends_at"].rstrip("Z"))
+    after = client.post(f"{URL}/students/{kavin}/extend-trial", json={"months": 1}).json()["current"]
+    ends = datetime.fromisoformat(after["ends_at"].rstrip("Z"))
+    assert after["status"] == "trialing" and 28 <= (ends - before).days <= 31
+    assert (ends.day, ends.time()) == (before.day, before.time()) or ends.day < before.day   # same day, or month end
+
+
+def test_trial_length_is_days_or_months_not_both(client):
+    kavin = _setup(client)
+    url = f"{URL}/students/{kavin}/extend-trial"
+    assert client.post(url, json={}).status_code == 422
+    assert client.post(url, json={"days": 7, "months": 1}).status_code == 422
+    assert client.post(url, json={"months": 4}).status_code == 422
+
+
+def test_add_months_handles_short_months():
+    from app.services.admin_billing import add_months
+
+    assert add_months(datetime(2026, 11, 10, 9, 30), 1) == datetime(2026, 12, 10, 9, 30)
+    assert add_months(datetime(2026, 12, 15), 1) == datetime(2027, 1, 15)
+    assert add_months(datetime(2027, 1, 31), 1) == datetime(2027, 2, 28)
+    assert add_months(datetime(2028, 1, 31), 1) == datetime(2028, 2, 29)

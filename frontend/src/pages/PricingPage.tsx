@@ -1,11 +1,20 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLanguage } from "../app/providers";
 import { ArrowRight } from "../components/ui/Button";
 import { Navbar } from "../layouts/Navbar";
+import { plansApi, type PublicPlan } from "../services/api";
 import type { PlanCopy } from "../utils/i18n";
 
-// Prices are still an open decision in the PRD. Change them here only.
-const PRICES_LKR = { monthly: 499, annual: 4999 };
+// Names, prices, descriptions, which plans show and the "best value" badge come from GET /plans,
+// which admins edit on Admin > Plans. Until it answers (or if it can't), the backend defaults
+// below are shown, so the page never renders empty. Perks and button text are page copy (i18n).
+type PlanKey = PublicPlan["key"];
+const DEFAULT_PLANS: Pick<PublicPlan, "key" | "billing" | "price_lkr" | "highlight">[] = [
+  { key: "free", billing: "free", price_lkr: 0, highlight: false },
+  { key: "monthly", billing: "month", price_lkr: 1500, highlight: false },
+  { key: "until_exam", billing: "until_exam", price_lkr: 12000, highlight: true },
+  { key: "class", billing: "student_month", price_lkr: 1000, highlight: false },
+];
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
@@ -15,6 +24,12 @@ const ICONS = {
       <path d="M12 20v-7" stroke="#3f9a2c" strokeWidth="2" strokeLinecap="round" />
       <path d="M12 13c0-4-3-6-7-6 0 4 3 6 7 6zM12 12c0-4 3-6.500 7-6.500 0 4-3 6.500-7 6.500z" fill="#4caf38" />
       <path d="M7 20h10l-1.200 3H8.200z" fill="#f2a33a" />
+    </svg>
+  ),
+  users: (
+    <svg viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <circle cx="9" cy="8" r="3.200" /><path d="M3 20c0-3.300 2.700-6 6-6s6 2.700 6 6" />
+      <path d="M16 4.300a3.200 3.200 0 0 1 0 6.400M18 14.300c1.800.800 3 2.700 3 5.700" />
     </svg>
   ),
   calendar: (
@@ -46,24 +61,30 @@ function Check() {
   );
 }
 
+const PLAN_ICON: Record<PlanKey, ReactNode> = {
+  free: ICONS.sprout, monthly: ICONS.calendar, until_exam: ICONS.crown, class: ICONS.users,
+};
+
 interface PlanCardProps {
   plan: PlanCopy;
+  name: string;
+  tagline: string;
   icon: ReactNode;
   price: ReactNode;
-  variant: "trial" | "monthly" | "annual";
+  variant: "free" | "paid" | "best";
   ribbon?: string;
   note?: string;
 }
 
-function PlanCard({ plan, icon, price, variant, ribbon, note }: PlanCardProps) {
+function PlanCard({ plan, name, tagline, icon, price, variant, ribbon, note }: PlanCardProps) {
   return (
     <li className={`plan plan-${variant}`}>
       {ribbon && <span className="plan-ribbon">{ICONS.crown} {ribbon}</span>}
       <div className="plan-head">
         <span className="plan-icon">{icon}</span>
         <div>
-          <h2>{plan.name}</h2>
-          <p>{plan.tagline}</p>
+          <h2>{name}</h2>
+          <p>{tagline}</p>
         </div>
       </div>
       <div className="plan-price">
@@ -87,6 +108,11 @@ export function PricingPage() {
   const { t, lang } = useLanguage();
   const p = t.pricing;
   const fmt = (n: number) => n.toLocaleString(lang === "ta" ? "ta-LK" : "en-LK");
+  const [live, setLive] = useState<PublicPlan[]>();
+  useEffect(() => {
+    plansApi.list().then((r) => setLive(r.plans), () => undefined);   // keep the defaults on failure
+  }, []);
+  const plans = live ?? DEFAULT_PLANS;
 
   return (
     <div className="page page-flow how-page">
@@ -113,27 +139,26 @@ export function PricingPage() {
           </svg>
         </section>
 
-        <ol className="plans">
-          <PlanCard
-            variant="trial"
-            plan={p.plans.trial}
-            icon={ICONS.sprout}
-            price={<span className="plan-amount">{p.free}</span>}
-            note={`${t.how.ctaNote1} · ${t.how.ctaNote2}`}
-          />
-          <PlanCard
-            variant="monthly"
-            plan={p.plans.monthly}
-            icon={ICONS.calendar}
-            price={<><span className="plan-cur">LKR</span><span className="plan-amount">{fmt(PRICES_LKR.monthly)}</span></>}
-          />
-          <PlanCard
-            variant="annual"
-            plan={p.plans.annual}
-            icon={ICONS.crown}
-            ribbon={p.bestValue}
-            price={<><span className="plan-cur">LKR</span><span className="plan-amount">{fmt(PRICES_LKR.annual)}</span></>}
-          />
+        <ol className={`plans plans-${plans.length}`}>
+          {plans.map((plan) => {
+            const copy = p.plans[plan.key];
+            const fromApi = "name_en" in plan ? plan as PublicPlan : undefined;
+            const free = plan.billing === "free";
+            return (
+              <PlanCard
+                key={plan.key}
+                variant={free ? "free" : plan.highlight ? "best" : "paid"}
+                plan={copy}
+                name={fromApi ? (lang === "ta" ? fromApi.name_ta : fromApi.name_en) : copy.name}
+                tagline={fromApi ? (lang === "ta" ? fromApi.blurb_ta : fromApi.blurb_en) : copy.tagline}
+                icon={PLAN_ICON[plan.key]}
+                ribbon={plan.highlight ? p.bestValue : undefined}
+                price={free ? <span className="plan-amount">{p.free}</span>
+                  : <><span className="plan-cur">LKR</span><span className="plan-amount">{fmt(plan.price_lkr)}</span></>}
+                note={free ? `${t.how.ctaNote1} · ${t.how.ctaNote2}` : undefined}
+              />
+            );
+          })}
         </ol>
 
         <ul className="trust-strip">

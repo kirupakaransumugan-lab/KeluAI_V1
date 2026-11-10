@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Literal, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.admin import get_current_admin
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/admin/billing", tags=["admin"])
 
 class NewPayment(BaseModel):
     user_id: int
-    plan: Literal["monthly", "annual"]
+    plan: Literal["monthly", "until_exam", "class"]
     amount_lkr: int = Field(gt=0, le=1_000_000)
     method: Literal["bank_transfer", "cash", "card", "other"]
     reference: str | None = Field(default=None, max_length=120)
@@ -25,7 +25,15 @@ class NewPayment(BaseModel):
 
 
 class TrialExtension(BaseModel):
-    days: int = Field(ge=1, le=90)
+    """Give either days or calendar months (1 month: 10 Nov -> 10 Dec)."""
+    days: int | None = Field(default=None, ge=1, le=90)
+    months: int | None = Field(default=None, ge=1, le=3)
+
+    @model_validator(mode="after")
+    def one_length(self) -> "TrialExtension":
+        if (self.days is None) == (self.months is None):
+            raise ValueError("give days or months")
+        return self
 
 
 def _fail(err: admin_billing.BillingError) -> NoReturn:
@@ -67,7 +75,7 @@ def remove_payment(payment_id: int, db: Session = Depends(get_db), _: User = Dep
 def extend_trial(user_id: int, data: TrialExtension, db: Session = Depends(get_db),
                  _: User = Depends(get_current_admin)) -> dict:
     try:
-        return admin_billing.extend_trial(db, user_id, data.days)
+        return admin_billing.extend_trial(db, user_id, data.days or 0, months=data.months or 0)
     except admin_billing.BillingError as err:
         _fail(err)
 

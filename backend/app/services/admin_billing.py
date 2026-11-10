@@ -15,9 +15,9 @@ from app.core.clock import utcnow
 from app.models.payment import Payment
 from app.models.user import Role, Subscription, SubscriptionStatus, User
 from app.services.admin_overview import PAID_PLANS, plan_state
-from app.services.subscription import PLANS, summary
+from app.services.plans import PlanError, list_plans, plan_ends
+from app.services.subscription import summary
 
-PLAN_DAYS = {"monthly": 30, "annual": 365}
 METHODS = ("bank_transfer", "cash", "card", "other")
 EXPIRING_DAYS = 7
 REVENUE_DAYS = 30
@@ -86,7 +86,8 @@ def overview(db: Session, *, q: str = "", now: datetime | None = None) -> dict:
         },
         "subscriptions": rows,
         "payments": [_payment_out(p, people) for p in payments],
-        "plans": PLANS, "methods": list(METHODS),
+        # Every paid plan, hidden ones too: an admin can still sell a plan students don't see.
+        "plans": [p for p in list_plans(db) if p["billing"] != "free"], "methods": list(METHODS),
         "expiring_days": EXPIRING_DAYS, "revenue_days": REVENUE_DAYS, "limit": LIST_LIMIT,
     }
 
@@ -102,7 +103,7 @@ def record_payment(db: Session, admin: User, *, user_id: int, plan: str, amount_
                    reference: str | None = None, note: str | None = None, paid_at: datetime | None = None,
                    now: datetime | None = None) -> Payment:
     now = now or utcnow()
-    if plan not in PLAN_DAYS:
+    if plan not in PAID_PLANS:
         raise BillingError("bad_plan")
     if method not in METHODS:
         raise BillingError("bad_method")
@@ -111,8 +112,14 @@ def record_payment(db: Session, admin: User, *, user_id: int, plan: str, amount_
     running = [s.ends_at for s in user.subscriptions
                if s.plan in PAID_PLANS and s.status != SubscriptionStatus.cancelled and s.ends_at > now]
     starts = max([now, *running])
+    try:
+        ends = plan_ends(plan, user, starts)
+    except PlanError as err:
+        raise BillingError(err.code) from None
+    if ends <= starts:
+        raise BillingError("plan_already_over")       # e.g. "Until exam" for a student past their exam
     sub = Subscription(user_id=user.id, plan=plan, status=SubscriptionStatus.active,
-                       starts_at=starts, ends_at=starts + timedelta(days=PLAN_DAYS[plan]))
+                       starts_at=starts, ends_at=ends)
     db.add(sub)
     db.flush()
     payment = Payment(user_id=user.id, subscription_id=sub.id, plan=plan, amount_lkr=amount_lkr, method=method,
@@ -136,7 +143,18 @@ def remove_payment(db: Session, payment_id: int) -> None:
     db.commit()
 
 
-def extend_trial(db: Session, user_id: int, days: int, now: datetime | None = None) -> dict:
+def add_months(at: datetime, months: int) -> datetime:
+    """The same day `months` calendar months later (10 Nov -> 10 Dec); a day the month lacks
+    becomes its last day (31 Jan -> 28/29 Feb)."""
+    import calendar
+
+    month0 = at.month - 1 + months
+    year, month = at.year + month0 // 12, month0 % 12 + 1
+    return at.replace(year=year, month=month, day=min(at.day, calendar.monthrange(year, month)[1]))
+
+
+def extend_trial(db: Session, user_id: int, days: int = 0, now: datetime | None = None, *,
+                 months: int = 0) -> dict:
     now = now or utcnow()
     user = _student(db, user_id)
     trial = max((s for s in user.subscriptions if s.plan == "trial"), key=lambda s: s.starts_at, default=None)
@@ -145,7 +163,7 @@ def extend_trial(db: Session, user_id: int, days: int, now: datetime | None = No
                              starts_at=now, ends_at=now)
         db.add(trial)
     # A trial that has ended restarts from today; a running one just gets longer.
-    trial.ends_at = max(trial.ends_at, now) + timedelta(days=days)
+    trial.ends_at = add_months(max(trial.ends_at, now), months) + timedelta(days=days)
     trial.status = SubscriptionStatus.trialing
     db.commit()
     db.refresh(user)

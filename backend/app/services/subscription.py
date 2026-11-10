@@ -8,15 +8,13 @@ from __future__ import annotations
 import math
 from datetime import datetime
 
+from sqlalchemy.orm import object_session
+
 from app.core.clock import utcnow
 from app.models.user import Subscription, SubscriptionStatus, User
+from app.services.plans import list_plans
 
 PAYMENTS_ENABLED = False
-# Keep in step with the public pricing page (frontend/src/pages/PricingPage.tsx).
-PLANS = [
-    {"key": "monthly", "price_lkr": 499, "period": "month"},
-    {"key": "annual", "price_lkr": 4999, "period": "year"},
-]
 LIVE = (SubscriptionStatus.trialing, SubscriptionStatus.active)
 
 
@@ -44,4 +42,5 @@ def summary(user: User, now: datetime | None = None) -> dict:
     live = [h for h in history if h["status"] in ("trialing", "active")]
     current = next((h for h in live if h["plan"] != "trial"), None) or (live[0] if live else None) \
         or (history[0] if history else None)
-    return {"current": current, "history": history, "plans": PLANS, "payments_enabled": PAYMENTS_ENABLED}
+    plans = list_plans(object_session(user), visible_only=True)     # the prices an admin set
+    return {"current": current, "history": history, "plans": plans, "payments_enabled": PAYMENTS_ENABLED}

@@ -559,8 +559,8 @@ h1 .underlined::after {
   padding: 26px 30px 24px; background: var(--s-ffffffeb); border-radius: 24px;
   box-shadow: 0 10px 36px rgba(140, 29, 107, 0.08); border: 2px solid transparent;
 }
-.plan-monthly { background: linear-gradient(180deg, var(--s-fdf3f9), var(--s-ffffff) 60%); border-color: var(--s-f6dcea); }
-.plan-annual { background: linear-gradient(180deg, var(--s-fffaf0), var(--s-ffffff) 60%); border-color: #f6c544; box-shadow: 0 14px 40px rgba(246, 178, 27, 0.2); }
+.plan-paid { background: linear-gradient(180deg, var(--s-fdf3f9), var(--s-ffffff) 60%); border-color: var(--s-f6dcea); }
+.plan-best { background: linear-gradient(180deg, var(--s-fffaf0), var(--s-ffffff) 60%); border-color: #f6c544; box-shadow: 0 14px 40px rgba(246, 178, 27, 0.2); }
 .plan-ribbon {
   position: absolute; top: -16px; right: -6px; display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 16px; border-radius: 999px; background: #f9c933; color: var(--ink);
@@ -575,20 +575,20 @@ h1 .underlined::after {
   flex: none; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%;
   background: var(--s-fdf0c8); color: var(--plum-ink);
 }
-.plan-monthly .plan-icon { background: var(--s-fbe3f1); }
+.plan-paid .plan-icon { background: var(--s-fbe3f1); }
 .plan-icon svg { width: 36px; height: 36px; }
 .plan-price {
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
   margin: 18px 0 16px; padding-bottom: 16px; border-bottom: 1.5px solid var(--s-f3dcea);
 }
-.plan-annual .plan-price { border-color: var(--s-f8e5b6); }
+.plan-best .plan-price { border-color: var(--s-f8e5b6); }
 .plan-cur { font-size: 26px; font-weight: 800; color: var(--ink); }
 .plan-amount { font-family: "Baloo 2", sans-serif; font-size: 64px; font-weight: 800; line-height: 1; color: var(--plum-ink); }
 .plan-period { font-size: 22px; color: var(--muted); }
 .plan-perks { list-style: none; margin: 0 0 22px; padding: 0; display: grid; gap: 10px; flex: 1; align-content: start; }
 .plan-perks li { display: flex; align-items: center; gap: 12px; font-size: 16px; }
 .plan-check { flex: none; width: 22px; height: 22px; fill: var(--t-c2185b); }
-.plan-annual .plan-check { fill: var(--t-f2a91b); }
+.plan-best .plan-check { fill: var(--t-f2a91b); }
 .plan-cta {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 15px; border-radius: 999px; font-weight: 700; font-size: 18px; text-align: center;
@@ -597,8 +597,25 @@ h1 .underlined::after {
 }
 .plan-cta:hover { background: var(--plum-dark); transform: translateY(-2px); }
 .plan-cta svg { flex: none; width: 20px; height: 20px; }
-.plan-trial .plan-cta { background: var(--s-fbd9ea); color: var(--t-c2185b); box-shadow: none; }
-.plan-trial .plan-cta:hover { background: var(--s-f7c4de); }
+/* Four plans side by side: tighter cards and a price that fits "12,000". */
+.plans-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.plans-4 .plan { padding: 24px 22px 22px; }
+.plans-4 .plan-head { gap: 12px; }
+.plans-4 .plan-icon { width: 54px; height: 54px; }
+.plans-4 .plan-icon svg { width: 30px; height: 30px; }
+.plans-4 .plan-head h2 { font-size: 21px; }
+.plans-4 .plan-head p { font-size: 14px; }
+.plans-4 .plan-cur { font-size: 20px; }
+.plans-4 .plan-amount { font-size: clamp(40px, 3.3vw, 54px); }
+.plans-4 .plan-period { flex-basis: 100%; font-size: 16px; }
+.plans-4 .plan-perks li { align-items: flex-start; font-size: 15px; }
+.plans-4 .plan-cta { font-size: 16px; padding: 13px; }
+.plans-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1400px) {
+  .plans-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.plan-free .plan-cta { background: var(--s-fbd9ea); color: var(--t-c2185b); box-shadow: none; }
+.plan-free .plan-cta:hover { background: var(--s-f7c4de); }
 .plan-note { margin-top: 10px; text-align: center; font-size: 14px; color: var(--muted); }
 
 .trust-strip {

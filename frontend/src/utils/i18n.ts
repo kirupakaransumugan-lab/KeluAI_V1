@@ -84,12 +84,13 @@ export interface DashboardCopy {
 export interface SubscriptionCopy {
   title: string; subtitle: string;
   current: string; yourPlan: string; noPlan: string;
-  planNames: Record<"trial" | "monthly" | "annual", string>;
+  planNames: Record<"trial" | "free" | "monthly" | "until_exam" | "class" | "annual", string>;
+  billing: Record<"free" | "month" | "until_exam" | "student_month", string>;
   status: Record<"trialing" | "active" | "expired" | "cancelled", string>;
   daysLeft: string; endsOn: string; endedOn: string; trialDay: string;
   expiredText: string;
   upgradeTitle: string; upgradeText: string;
-  perMonth: string; perYear: string; annualSaving: string; bestValue: string;
+  bestValue: string;
   choose: string; soon: string; soonText: string; comparePlans: string;
   history: string; colPlan: string; colStatus: string; colFrom: string; colTo: string;
   loading: string; loadFailed: string; retry: string;
@@ -516,7 +517,7 @@ export interface PricingCopy {
   subtitle: string;
   free: string;
   bestValue: string;
-  plans: { trial: PlanCopy; monthly: PlanCopy; annual: PlanCopy };
+  plans: Record<"free" | "monthly" | "until_exam" | "class", PlanCopy>;   // names/prices: GET /plans
   trust: string[];
 }
 
@@ -672,50 +673,57 @@ const en: Copy = {
     free: "FREE",
     bestValue: "Best Value",
     plans: {
-      trial: {
-        name: "Free Trial",
-        tagline: "Explore KELU with limited access.",
-        period: "/ 14 days",
+      free: {
+        name: "Free",
+        tagline: "Diagnostic, daily quiz and one marked paper a week.",
+        period: "always",
         perks: [
           "20-question diagnostic test",
-          "Limited practice questions",
-          "Basic hints (step-by-step)",
-          "Access to selected past paper questions",
+          "Daily quiz and streaks",
+          "One marked paper a week",
+          "Step-by-step hints",
           "Track your progress",
         ],
-        cta: "Start 14-day free trial",
+        cta: "Start for free",
       },
       monthly: {
         name: "Monthly",
-        tagline: "Full access, one month at a time.",
-        period: "/ month",
+        tagline: "Full tutor, practice and tests; 40 written markings a month.",
+        period: "per month",
         perks: [
-          "Everything in Free Trial",
-          "Unlimited practice questions",
-          "AI marking for your working",
-          "AI tutor with voice (Tamil / English)",
+          "Everything in Free",
+          "Full AI tutor with voice (Tamil / English)",
+          "Unlimited practice and tests",
+          "40 written-answer markings a month",
           "Full past paper library",
           "Save questions and create your own list",
-          "Track mastery and daily streaks",
         ],
-        cta: "Get Monthly Plan",
+        cta: "Get Monthly",
       },
-      annual: {
-        name: "Annual",
-        tagline: "Full access for a whole year.",
-        period: "/ year",
+      until_exam: {
+        name: "Until exam",
+        tagline: "About LKR 1,200 a month over ten months.",
+        period: "until your A/L exam",
         perks: [
-          "Everything in Monthly Plan",
-          "Best value – save more",
-          "Full access for 12 months",
-          "Unlimited practice and AI marking",
-          "AI tutor with voice (Tamil / English)",
-          "Complete past paper library",
-          "Save questions and create your own list",
+          "Everything in Monthly",
+          "Valid until your A/L exam",
+          "One payment, nothing to renew",
+          "About LKR 1,200 a month over ten months",
           "Track mastery and daily streaks",
-          "Early access to new features",
         ],
-        cta: "Get Annual Plan",
+        cta: "Get the Until-exam plan",
+      },
+      class: {
+        name: "Class plan",
+        tagline: "For tuition teachers, with a class dashboard.",
+        period: "per student a month",
+        perks: [
+          "For tuition teachers and their classes",
+          "Everything in Monthly for each student",
+          "Class dashboard to follow every student",
+          "Pay only for active students",
+        ],
+        cta: "Ask about class plans",
       },
     },
     trust: ["Safe and secure payments", "Pay in LKR", "Cancel anytime", "Student friendly pricing", "Support for Tamil and English"],
@@ -1073,12 +1081,13 @@ const en: Copy = {
     subscription: {
       title: "Subscription", subtitle: "Your plan, trial days and plan history.",
       current: "Current plan", yourPlan: "Your plan", noPlan: "No plan yet",
-      planNames: { trial: "Free Trial", monthly: "Monthly", annual: "Annual" },
+      planNames: { trial: "Free Trial", free: "Free", monthly: "Monthly", until_exam: "Until exam", class: "Class plan", annual: "Annual" },
+      billing: { free: "always", month: "/ month", until_exam: "until your A/L exam", student_month: "per student a month" },
       status: { trialing: "Trial", active: "Active", expired: "Expired", cancelled: "Cancelled" },
       daysLeft: "{n} days left", endsOn: "Ends {date}", endedOn: "Ended {date}", trialDay: "Day {used} of {total}",
       expiredText: "Your plan has ended. Choose a plan to keep full access.",
       upgradeTitle: "Upgrade for full access", upgradeText: "Unlimited practice, AI marking and the full past paper library.",
-      perMonth: "/ month", perYear: "/ year", annualSaving: "Save LKR {n} a year compared with monthly", bestValue: "Best value",
+      bestValue: "Best value",
       choose: "Choose {plan}", soon: "Online payment coming soon",
       soonText: "Payments in LKR are being set up. Your trial keeps working until then.", comparePlans: "Compare all plans",
       history: "Plan history", colPlan: "Plan", colStatus: "Status", colFrom: "From", colTo: "To",
@@ -1350,50 +1359,57 @@ const ta: Copy = {
     free: "இலவசம்",
     bestValue: "சிறந்த பெறுமதி",
     plans: {
-      trial: {
-        name: "இலவச சோதனை",
-        tagline: "வரையறுக்கப்பட்ட அணுகலுடன் KELU ஐ அறிந்துகொள்ளுங்கள்.",
-        period: "/ 14 நாட்கள்",
+      free: {
+        name: "இலவசம்",
+        tagline: "ஆரம்ப மதிப்பீடு, தினசரி வினாடி வினா, வாரத்துக்கு ஒரு திருத்திய வினாத்தாள்.",
+        period: "எப்போதும்",
         perks: [
           "20 வினாக்கள் கொண்ட கண்டறிதல் சோதனை",
-          "வரையறுக்கப்பட்ட பயிற்சி வினாக்கள்",
-          "அடிப்படைக் குறிப்புகள் (படிப்படியாக)",
-          "தெரிவுசெய்யப்பட்ட கடந்தகால வினாக்கள்",
+          "தினசரி வினாடி வினாவும் தொடர் நாட்களும்",
+          "வாரத்துக்கு ஒரு திருத்திய வினாத்தாள்",
+          "படிப்படியான குறிப்புகள்",
           "முன்னேற்றக் கண்காணிப்பு",
         ],
-        cta: "14 நாள் இலவச சோதனையைத் தொடங்கு",
+        cta: "இலவசமாகத் தொடங்கு",
       },
       monthly: {
         name: "மாதாந்தம்",
-        tagline: "முழு அணுகல், ஒவ்வொரு மாதமாக.",
-        period: "/ மாதம்",
+        tagline: "முழு AI ஆசிரியர், பயிற்சி, பரீட்சைகள்; மாதம் 40 எழுத்து விடைத் திருத்தங்கள்.",
+        period: "மாதத்துக்கு",
         perks: [
-          "இலவச சோதனையில் உள்ள அனைத்தும்",
-          "வரம்பற்ற பயிற்சி வினாக்கள்",
-          "உங்கள் செய்கைக்கு AI மதிப்பீடு",
-          "குரல் வசதியுடன் AI ஆசிரியர் (தமிழ் / ஆங்கிலம்)",
+          "இலவசத் திட்டத்தில் உள்ள அனைத்தும்",
+          "குரல் வசதியுடன் முழு AI ஆசிரியர் (தமிழ் / ஆங்கிலம்)",
+          "வரம்பற்ற பயிற்சியும் பரீட்சைகளும்",
+          "மாதம் 40 எழுத்து விடைத் திருத்தங்கள்",
           "முழுமையான கடந்தகால வினாத்தாள் தொகுப்பு",
           "வினாக்களைச் சேமித்து உங்கள் சொந்தப் பட்டியலை உருவாக்குங்கள்",
-          "தேர்ச்சியும் தினசரித் தொடர் நாட்களும்",
         ],
         cta: "மாதாந்தத் திட்டத்தைப் பெறுங்கள்",
       },
-      annual: {
-        name: "வருடாந்தம்",
-        tagline: "ஒரு முழு வருடத்துக்கான முழு அணுகல்.",
-        period: "/ வருடம்",
+      until_exam: {
+        name: "பரீட்சை வரை",
+        tagline: "பத்து மாதங்களுக்கு மாதம் சுமார் LKR 1,200.",
+        period: "உங்கள் A/L பரீட்சை வரை",
         perks: [
           "மாதாந்தத் திட்டத்தில் உள்ள அனைத்தும்",
-          "சிறந்த பெறுமதி – அதிகம் சேமியுங்கள்",
-          "12 மாதங்களுக்கு முழு அணுகல்",
-          "வரம்பற்ற பயிற்சியும் AI மதிப்பீடும்",
-          "குரல் வசதியுடன் AI ஆசிரியர் (தமிழ் / ஆங்கிலம்)",
-          "முழுமையான கடந்தகால வினாத்தாள் தொகுப்பு",
-          "வினாக்களைச் சேமித்து உங்கள் சொந்தப் பட்டியலை உருவாக்குங்கள்",
+          "உங்கள் A/L பரீட்சை வரை செல்லுபடியாகும்",
+          "ஒரே கட்டணம், புதுப்பிக்கத் தேவையில்லை",
+          "பத்து மாதங்களுக்கு மாதம் சுமார் LKR 1,200",
           "தேர்ச்சியும் தினசரித் தொடர் நாட்களும்",
-          "புதிய வசதிகளுக்கு முன்கூட்டிய அணுகல்",
         ],
-        cta: "வருடாந்தத் திட்டத்தைப் பெறுங்கள்",
+        cta: "பரீட்சை வரையான திட்டத்தைப் பெறுங்கள்",
+      },
+      class: {
+        name: "வகுப்புத் திட்டம்",
+        tagline: "தனியார் வகுப்பு ஆசிரியர்களுக்கு, வகுப்பு முகாமைத்துவப் பலகையுடன்.",
+        period: "ஒரு மாணவருக்கு மாதத்துக்கு",
+        perks: [
+          "தனியார் வகுப்பு ஆசிரியர்களுக்கும் அவர்களின் வகுப்புகளுக்கும்",
+          "ஒவ்வொரு மாணவருக்கும் மாதாந்தத் திட்டத்தின் அனைத்தும்",
+          "ஒவ்வொரு மாணவரையும் கண்காணிக்க வகுப்புப் பலகை",
+          "செயலில் உள்ள மாணவர்களுக்கு மட்டும் கட்டணம்",
+        ],
+        cta: "வகுப்புத் திட்டம் பற்றிக் கேளுங்கள்",
       },
     },
     trust: ["பாதுகாப்பான கொடுப்பனவுகள்", "இலங்கை ரூபாயில் செலுத்தலாம்", "எப்போது வேண்டுமானாலும் ரத்து செய்யலாம்", "மாணவர்களுக்கு ஏற்ற கட்டணம்", "தமிழ், ஆங்கில மொழி ஆதரவு"],
@@ -1751,12 +1767,13 @@ const ta: Copy = {
     subscription: {
       title: "சந்தா", subtitle: "உங்கள் திட்டம், சோதனை நாட்கள், திட்ட வரலாறு.",
       current: "தற்போதைய திட்டம்", yourPlan: "உங்கள் திட்டம்", noPlan: "இன்னும் திட்டம் இல்லை",
-      planNames: { trial: "இலவச சோதனை", monthly: "மாதாந்தம்", annual: "வருடாந்தம்" },
+      planNames: { trial: "இலவச சோதனை", free: "இலவசம்", monthly: "மாதாந்தம்", until_exam: "பரீட்சை வரை", class: "வகுப்புத் திட்டம்", annual: "வருடாந்தம்" },
+      billing: { free: "எப்போதும்", month: "/ மாதம்", until_exam: "உங்கள் A/L பரீட்சை வரை", student_month: "ஒரு மாணவருக்கு மாதம்" },
       status: { trialing: "சோதனை", active: "செயலில்", expired: "காலாவதி", cancelled: "இரத்து" },
       daysLeft: "{n} நாட்கள் உள்ளன", endsOn: "{date} அன்று முடிகிறது", endedOn: "{date} அன்று முடிந்தது", trialDay: "{total} இல் {used} ஆம் நாள்",
       expiredText: "உங்கள் திட்டம் முடிந்துவிட்டது. முழு அணுகலுக்கு ஒரு திட்டத்தைத் தெரிவுசெய்யுங்கள்.",
       upgradeTitle: "முழு அணுகலுக்கு மேம்படுத்துங்கள்", upgradeText: "வரம்பற்ற பயிற்சி, AI மதிப்பீடு, முழுக் கடந்தகால வினாத்தாள் நூலகம்.",
-      perMonth: "/ மாதம்", perYear: "/ வருடம்", annualSaving: "மாதாந்தத்துடன் ஒப்பிடுகையில் வருடத்துக்கு LKR {n} சேமிப்பு", bestValue: "சிறந்த மதிப்பு",
+      bestValue: "சிறந்த மதிப்பு",
       choose: "{plan} தெரிவுசெய்", soon: "இணையவழிக் கட்டணம் விரைவில்",
       soonText: "LKR கட்டண வசதி அமைக்கப்படுகிறது. அதுவரை உங்கள் சோதனைக் காலம் தொடரும்.", comparePlans: "எல்லாத் திட்டங்களையும் ஒப்பிடு",
       history: "திட்ட வரலாறு", colPlan: "திட்டம்", colStatus: "நிலை", colFrom: "தொடக்கம்", colTo: "முடிவு",
