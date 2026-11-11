@@ -101,7 +101,8 @@ def detail(db: Session, user: User, now: datetime | None = None) -> dict:
     report = build_report(db, user, days=None, now=now)
     return {
         "student": {**_row(user, stats, now), "parent_email": user.profile.parent_email if user.profile else None,
-                    "has_password": user.password_hash is not None, "google": user.google_sub is not None},
+                    "has_password": user.password_hash is not None, "google": user.google_sub is not None,
+                    "microsoft": user.microsoft_sub is not None},
         "progress": {k: report[k] for k in ("has_answers", "mastery", "topics_covered", "accuracy", "streak",
                                             "weekly", "topics", "recent")},
         "activity": _activity(rows, now),

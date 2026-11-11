@@ -12,6 +12,10 @@ def get_by_google_sub(db: Session, google_sub: str) -> User | None:
     return db.scalar(select(User).where(User.google_sub == google_sub))
 
 
+def get_by_microsoft_sub(db: Session, microsoft_sub: str) -> User | None:
+    return db.scalar(select(User).where(User.microsoft_sub == microsoft_sub))
+
+
 def get_by_id(db: Session, user_id: int) -> User | None:
     return db.scalar(
         select(User)

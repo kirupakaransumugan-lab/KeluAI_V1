@@ -40,35 +40,43 @@ function loadGsi(): Promise<GsiApi> {
   return gsiScript;
 }
 
-let providers: Promise<string | null> | undefined;
-function googleClientId(): Promise<string | null> {
-  providers ??= authApi.providers().then((p) => p.google_client_id, () => null);
+type Providers = { google_client_id: string | null; microsoft_client_id: string | null };
+let providers: Promise<Providers> | undefined;
+/** Which social logins the backend has switched on (GET /auth/providers, asked once per page load). */
+export function socialProviders(): Promise<Providers> {
+  providers ??= authApi.providers().catch(() => ({ google_client_id: null, microsoft_client_id: null }));
   return providers;
 }
+const googleClientId = () => socialProviders().then((p) => p.google_client_id);
 
-export type GooglePending = GoogleProfileRequired & { credential: string };
+export type SocialProvider = "google" | "microsoft";
+export type GooglePending = GoogleProfileRequired & { credential: string; provider: SocialProvider };
+export type SocialError = "google" | "microsoft" | "microsoftUnverified" | "network" | "disabled";
 
-/** Shared by the log-in and sign-up forms: turns a Google credential into a user (or a pending profile). */
+/** Shared by the log-in and sign-up forms: turns a Google or Microsoft ID token into a user
+ *  (or a pending profile, for a first sign-in). */
 export function useGoogleSignIn(onUser: (user: User) => void) {
   const [pending, setPending] = useState<GooglePending>();
-  const [error, setError] = useState<"google" | "network" | "disabled">();
+  const [error, setError] = useState<SocialError>();
 
-  async function onCredential(credential: string) {
+  async function onCredential(credential: string, provider: SocialProvider = "google") {
     setError(undefined);
     try {
-      onUser((await authApi.google(credential)).user);
+      onUser((await authApi[provider](credential)).user);
     } catch (err) {
       if (err instanceof ApiError && err.code === "profile_required") {
-        setPending({ ...(err.detail as GoogleProfileRequired), credential });
+        setPending({ ...(err.detail as GoogleProfileRequired), credential, provider });
       } else if (err instanceof ApiError && err.code === "account_disabled") {
         setError("disabled");
+      } else if (err instanceof ApiError && err.code === "microsoft_email_unverified") {
+        setError("microsoftUnverified");
       } else {
-        setError(err instanceof ApiError ? "google" : "network");
+        setError(err instanceof ApiError ? provider : "network");
       }
     }
   }
 
-  return { pending, cancel: () => setPending(undefined), error, onCredential };
+  return { pending, cancel: () => setPending(undefined), error, setError, onCredential };
 }
 
 /** Google's official button, or our look-alike that explains it's not set up yet. */
@@ -121,7 +129,7 @@ export function GoogleButton({ onCredential, onUnavailable }: { onCredential: (c
 
 const PROFILE_FIELDS: SignupField[] = ["mobile", "al_exam_year", "accept_terms"];
 
-/** One-time form after a first Google sign-in: Google gave us name and email, KELU needs the rest. */
+/** One-time form after a first Google or Microsoft sign-in: they gave us name and email, KELU needs the rest. */
 export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: GooglePending; onUser: (u: User) => void; onCancel: () => void }) {
   const { lang, t } = useLanguage();
   const s = t.signup;
@@ -138,6 +146,7 @@ export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: Goog
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<"network" | "generic" | "google">();
+  const providerError = pending.provider === "microsoft" ? t.login.errors.microsoft : t.login.errors.google;
   const [submitting, setSubmitting] = useState(false);
   const msg = (key?: string) => (key ? s.errors[key as keyof typeof s.errors] : undefined);
   const update = <K extends keyof SignupValues>(key: K, value: SignupValues[K]) => setValues((v) => ({ ...v, [key]: value }));
@@ -159,7 +168,7 @@ export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: Goog
 
     setSubmitting(true);
     try {
-      const { user } = await authApi.google(pending.credential, {
+      const { user } = await authApi[pending.provider](pending.credential, {
         mobile: values.mobile,
         medium: values.medium,
         al_exam_year: Number(values.al_exam_year),
@@ -173,7 +182,7 @@ export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: Goog
         setErrors(serverErrors);
         if (!Object.keys(serverErrors).length) setFormError("generic");
       } else if (err instanceof ApiError && err.status === 401) {
-        setFormError("google"); // Google's token lasts an hour; they need to click the button again
+        setFormError("google"); // the ID token lasts an hour; they need to click the button again
       } else {
         setFormError(err instanceof ApiError ? "generic" : "network");
       }
@@ -187,7 +196,7 @@ export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: Goog
       <div className="su-span">
         <h2 id="li-heading" className="li-heading">{g.heading}</h2>
         <p className="li-intro">{g.intro}</p>
-        <p className="gp-who">{ICONS.google}<span><strong>{pending.full_name}</strong> · {pending.email}</span></p>
+        <p className="gp-who">{ICONS[pending.provider]}<span><strong>{pending.full_name}</strong> · {pending.email}</span></p>
       </div>
 
       <Field id="gp-mobile" label={s.mobile} icon={ICONS.phone} error={msg(errors.mobile)} help={s.mobileHelp}>
@@ -254,7 +263,7 @@ export function GoogleProfileForm({ pending, onUser, onCancel }: { pending: Goog
         {errors.accept_terms && <p className="su-error" role="alert">{msg(errors.accept_terms)}</p>}
       </div>
 
-      {formError && <p className="su-form-error" role="alert">{formError === "google" ? t.login.errors.google : s.errors[formError]}</p>}
+      {formError && <p className="su-form-error" role="alert">{formError === "google" ? providerError : s.errors[formError]}</p>}
 
       <button type="submit" className="su-submit" disabled={submitting} aria-busy={submitting}>
         {submitting ? g.submitting : g.submit} {!submitting && <ArrowRight />}

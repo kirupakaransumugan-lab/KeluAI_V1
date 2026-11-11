@@ -179,7 +179,7 @@ def _pages_for(job_id: str, path: Path, info: dict) -> list[str]:
     from app.rag.agent.tutor_agent import build_llm
 
     _set(job_id, stage="Scanned PDF: reading each page with the AI (a few minutes)")
-    ocr_pdf(path, out_dir, openrouter_transcriber(build_llm(s.openrouter_api_key, s.openrouter_base_url), s.ocr_model),
+    ocr_pdf(path, out_dir, openrouter_transcriber(build_llm(s.openrouter_api_key, s.openrouter_base_url, purpose="ocr"), s.ocr_model),
             workers=s.ocr_workers)
     return load_pages(out_dir) or []
 

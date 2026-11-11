@@ -41,6 +41,8 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Google's stable account id ("sub" claim). Emails can change; this can't.
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    # Microsoft's id for this person in KELU's app registration (the ID token's "sub").
+    microsoft_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     # Session tokens issued before this moment are rejected (set on password reset).
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     role: Mapped[Role] = mapped_column(_enum(Role, "user_role"), default=Role.student)

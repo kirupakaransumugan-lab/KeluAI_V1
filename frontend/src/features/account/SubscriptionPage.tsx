@@ -72,7 +72,7 @@ export function SubscriptionPage() {
             <h2 id="ac-plans-title">{s.upgradeTitle}</h2>
             <p>{s.upgradeText}</p>
           </div>
-          <a href="/pricing" className="db-btn-outline db-btn-sm">{s.comparePlans}</a>
+          <a href="/#pricing" className="db-btn-outline db-btn-sm">{s.comparePlans}</a>
         </div>
         {!data.payments_enabled && (
           <p className="ac-banner" role="note">{icons.clock}<span><strong>{s.soon}.</strong> {s.soonText}</span></p>

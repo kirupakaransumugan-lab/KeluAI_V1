@@ -70,12 +70,12 @@ def _ocr_dir(p: ParsedPaperName) -> Path:
     return Path(get_rag_settings().ocr_dir) / Path(p.canonical_name).stem
 
 
-def _llm():
+def _llm(purpose: str = "other"):
     from app.rag.agent.tutor_agent import LLMNotConfigured, build_llm
 
     s = get_rag_settings()
     try:
-        return build_llm(s.openrouter_api_key, s.openrouter_base_url)
+        return build_llm(s.openrouter_api_key, s.openrouter_base_url, purpose=purpose)
     except LLMNotConfigured as e:
         sys.exit(f"{e}. Add it to backend/.env yourself (see the README).")
 
@@ -89,7 +89,7 @@ def store_for(embedder) -> VectorStore:
 
 def cmd_ocr(args) -> None:
     s = get_rag_settings()
-    transcribe = openrouter_transcriber(_llm(), s.ocr_model)
+    transcribe = openrouter_transcriber(_llm("ocr"), s.ocr_model)
     for pdf, p in _selected(args, args.folder):
         n = ocr_pdf(pdf, _ocr_dir(p), transcribe, workers=s.ocr_workers, pages=args.pages)
         print(f"{'ocr ' if n else 'done'}  {pdf.name}" + (f" ({n} pages)" if n else ""))
@@ -156,7 +156,7 @@ def cmd_ask(args) -> None:
     from app.rag.retrieval import Retriever
 
     s = get_rag_settings()
-    llm = _llm()
+    llm = _llm("tutor")
     embedder = build_embedder(s.embedding_provider, s.embedding_dim)
     retriever = Retriever(store_for(embedder), embedder, top_k=s.retrieval_top_k, min_score=s.retrieval_min_score)
     agent = TutorAgent(llm, retriever, model=s.llm_model,

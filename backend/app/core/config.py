@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Google sign-in. The OAuth *client ID* (not a secret) from Google Cloud Console.
     # Unset = the Google button stays hidden and /auth/google answers 503.
     google_client_id: str | None = Field(None, alias="GOOGLE_CLIENT_ID")
+    # Microsoft sign-in. The Application (client) ID of an app registration in Microsoft Entra
+    # (not a secret). Unset = the Microsoft button says "coming soon" and /auth/microsoft answers 503.
+    microsoft_client_id: str | None = Field(None, alias="MICROSOFT_CLIENT_ID")
 
     # Outgoing email (password-reset codes). Unset SMTP_HOST = dev mode: the email is
     # written to the server console instead of being sent. Never leave it unset in production.

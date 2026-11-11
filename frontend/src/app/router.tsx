@@ -1,8 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { HomePage } from "../pages/HomePage";
-import { HowItWorksPage } from "../pages/HowItWorksPage";
-import { FeaturesPage } from "../pages/FeaturesPage";
-import { PricingPage } from "../pages/PricingPage";
 import { SignupPage } from "../pages/SignupPage";
 import { LoginPage } from "../pages/LoginPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
@@ -31,9 +28,10 @@ export function AppRouter() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/how-it-works" element={<HowItWorksPage />} />
-        <Route path="/features" element={<FeaturesPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
+        {/* The landing page is one scrolling page; the old page URLs jump to their section. */}
+        <Route path="/how-it-works" element={<Navigate to={{ pathname: "/", hash: "#how-it-works" }} replace />} />
+        <Route path="/features" element={<Navigate to={{ pathname: "/", hash: "#features" }} replace />} />
+        <Route path="/pricing" element={<Navigate to={{ pathname: "/", hash: "#pricing" }} replace />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

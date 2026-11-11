@@ -46,9 +46,9 @@ img { max-width: 100%; }
 }
 /* The illustration lives in <main> (below the navbar) and is scaled to its full
    height, so nothing is cropped or hidden behind the navbar. Its left edge fades out. */
-.page main { position: relative; flex: 1; display: flex; align-items: center; min-height: 0; }
+.page main, .landing-hero-main { position: relative; flex: 1; display: flex; align-items: center; min-height: 0; }
 
-/* Scrolling content pages (How it works, Features, Pricing). */
+/* Scrolling content pages. */
 .page-flow { height: auto; min-height: 100vh; overflow: visible; overflow-x: clip; }
 .how-page { background: linear-gradient(var(--art-veil), var(--art-veil)) fixed, var(--s-fdf8f3) url("/how-it-works/background.png") center top / cover fixed no-repeat; }
 .page .how-main { display: block; flex: none; width: 100%; margin: 0; padding: 0 var(--gutter) 64px; }
@@ -406,7 +406,7 @@ h1 .underlined::after {
 }
 .how-step-art { display: grid; place-items: center; aspect-ratio: 4 / 3; margin-bottom: 14px; border-radius: 18px; overflow: hidden; }
 .how-step-art img { width: 100%; height: 100%; object-fit: contain; }
-.how-step h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; margin: 0 0 8px; }
+.how-step h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; margin: 0 0 8px; }
 .how-step p { font-size: 15px; line-height: 1.55; color: var(--muted); margin: 0; }
 .how-arrow {
   position: absolute; right: -28px; top: 26%; z-index: 2;
@@ -507,7 +507,7 @@ h1 .underlined::after {
   background: var(--s-fbe3f1); color: var(--plum-ink); font-weight: 700; font-size: 17px;
 }
 .feat-head { display: flex; align-items: flex-start; gap: 16px; margin: 14px 0 18px; }
-.feat-head h2 { margin: 0 0 6px; font-size: 22px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+.feat-head h3 { margin: 0 0 6px; font-size: 22px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
 .feat-head p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); }
 .feat-icon {
   flex: none; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%;
@@ -569,7 +569,7 @@ h1 .underlined::after {
 .plan-ribbon svg { width: 18px; height: 18px; }
 .plan-ribbon svg path { fill: var(--ink); stroke: none; }
 .plan-head { display: flex; align-items: center; gap: 18px; }
-.plan-head h2 { margin: 0 0 4px; font-size: 24px; font-weight: 800; }
+.plan-head h3 { margin: 0 0 4px; font-size: 24px; font-weight: 800; }
 .plan-head p { margin: 0; font-size: 15px; color: var(--muted); }
 .plan-icon {
   flex: none; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%;
@@ -603,7 +603,7 @@ h1 .underlined::after {
 .plans-4 .plan-head { gap: 12px; }
 .plans-4 .plan-icon { width: 54px; height: 54px; }
 .plans-4 .plan-icon svg { width: 30px; height: 30px; }
-.plans-4 .plan-head h2 { font-size: 21px; }
+.plans-4 .plan-head h3 { font-size: 21px; }
 .plans-4 .plan-head p { font-size: 14px; }
 .plans-4 .plan-cur { font-size: 20px; }
 .plans-4 .plan-amount { font-size: clamp(40px, 3.3vw, 54px); }
@@ -744,7 +744,6 @@ h1 .underlined::after {
 /* Google renders its own button (an iframe) into this box. */
 .li-google { display: flex; align-items: center; justify-content: center; min-height: max(44px, calc(var(--u) * 3.7)); min-width: 0; }
 .li-google[aria-busy="true"] { border: 1px solid var(--s-e3d9e0); border-radius: 10px; background: var(--s-faf7f9); }
-.su-social-one { grid-template-columns: 1fr; }
 .li-linkbtn {
   justify-self: center; padding: 6px 4px; border: 0; background: none;
   color: var(--plum-ink); font-weight: 600; font-size: max(14px, calc(var(--u) * 1.1)); cursor: pointer;
@@ -1007,12 +1006,25 @@ html[lang="ta"] .su-integral { display: none; }
 }
 
 /* Home hero: the side-by-side layout needs a wide screen. On narrow or squarish
-   screens (phones, tablets, iPad landscape at 4:3) the art would run under the
-   headline, so stack copy first, then the illustration in normal flow. */
+   screens (phones, tablets, iPad landscape at 4:3) the illustration becomes the
+   hero's background instead: it fills the hero behind the copy, and a veil in the
+   page colour (solid at the top, clear at the bottom) keeps the headline readable
+   while the laptop and bear show through lower down. */
 @media (max-width: 900px), (max-aspect-ratio: 3/2) {
   .page { height: auto; min-height: 100vh; overflow: visible; overflow-x: clip; }
-  .page main { flex-direction: column; align-items: stretch; }
-  .hero { display: flex; flex-direction: column; padding: 28px var(--gutter) 0; }
+  .page main, .landing-hero-main { flex-direction: column; align-items: stretch; }
+  .hero {
+    position: relative; isolation: isolate; display: flex; flex-direction: column;
+    min-height: calc(100svh - var(--nav-h, 80px)); padding: 28px var(--gutter) 0;
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(to bottom,
+      var(--s-fffaf6) 18%,
+      color-mix(in srgb, var(--s-fffaf6) 72%, transparent) 48%,
+      color-mix(in srgb, var(--s-fffaf6) 10%, transparent) 78%,
+      transparent);
+  }
   .hero-copy { order: 1; max-width: 620px; }
   .hero h1 { font-size: clamp(34px, 7.5vw, 56px); margin-bottom: 14px; }
   .hero h1 span { white-space: normal; }
@@ -1022,18 +1034,21 @@ html[lang="ta"] .su-integral { display: none; }
   .hero-sub span + span::before { content: " "; }
   .hero-ctas { flex-wrap: wrap; gap: 12px; }
   .hero-art {
-    /* Full-bleed: cancel the hero's side padding. */
-    position: relative; order: 2; right: auto; bottom: auto;
-    width: calc(100% + var(--gutter) * 2); height: auto; margin: 8px calc(var(--gutter) * -1) 0;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%);
-    mask-image: linear-gradient(to bottom, transparent, #000 12%);
+    /* Behind everything, pinned to the hero's bottom at the picture's own shape (so the laptop
+       and bear stay whole), wider than the screen and shifted left so both stay in view. Its top
+       edge fades into the page, so the copy above sits on plain background. */
+    position: absolute; z-index: -2; top: auto; left: auto; right: -3%; bottom: 0;
+    width: 200%; height: auto; aspect-ratio: 1662 / 946;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 90%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 90%, transparent);
   }
-  .formula { font-size: 28px; left: 80%; }
+  @media (min-width: 600px) { .hero-art { width: 160%; right: -6%; } }
+  .formula { display: none; }
   /* The hero image has its own leaves; the extra cluster would float at the page bottom. */
   .hero-leaves { display: none; }
   .hero-assurances {
     position: static; order: 3; transform: none; justify-content: center; flex-wrap: wrap;
-    gap: 10px; margin: -64px 0 24px; padding: 0 var(--gutter); z-index: 2;
+    gap: 10px; margin: auto 0 28px; padding: 28px var(--gutter) 0;
   }
   .hero-assurances li { font-size: 14px; gap: 8px; padding: 8px 16px; background: var(--s-ffffffbf); }
   .hero-assurances svg { width: 20px; height: 20px; }
@@ -1086,7 +1101,7 @@ html[lang="ta"] .su-integral { display: none; }
   .hero { padding-top: 22px; }
   .hero-ctas > * { width: 100%; justify-content: center; }
   .formula { display: none; }
-  .hero-assurances { margin-top: -48px; gap: 8px; flex-wrap: nowrap; padding: 0 8px; }
+  .hero-assurances { gap: 8px; flex-wrap: nowrap; padding: 28px 8px 0; }
   .hero-assurances li { font-size: 13px; padding: 7px 12px; gap: 6px; }
   .hero-assurances svg { width: 17px; height: 17px; }
 
@@ -1096,7 +1111,7 @@ html[lang="ta"] .su-integral { display: none; }
   .how-hero-bear, .how-hero-bear.feat-bear, .price-bear { height: 180px; }
 
   .how-steps, .feat-grid { grid-template-columns: 1fr; gap: 18px; }
-  .how-step h2 { font-size: 19px; }
+  .how-step h3 { font-size: 19px; }
 
   .how-try { margin-top: 40px; }
   .try-question, .try-hints { padding: 18px; }
@@ -1109,7 +1124,7 @@ html[lang="ta"] .su-integral { display: none; }
 
   .feat-card { padding: 18px 16px 66px; }
   .feat-head { gap: 12px; }
-  .feat-head h2 { font-size: 19px; }
+  .feat-head h3 { font-size: 19px; }
   .feat-icon { width: 50px; height: 50px; font-size: 24px; }
   .feat-icon svg { width: 26px; height: 26px; }
   .feat-more { right: 16px; bottom: 14px; }
@@ -1121,7 +1136,7 @@ html[lang="ta"] .su-integral { display: none; }
 
   .plan { padding: 24px 18px 20px; }
   .plan-head { gap: 14px; }
-  .plan-head h2 { font-size: 21px; }
+  .plan-head h3 { font-size: 21px; }
   .plan-icon { width: 54px; height: 54px; }
   .plan-icon svg { width: 30px; height: 30px; }
   .plan-amount { font-size: 50px; }
@@ -1139,4 +1154,36 @@ html[lang="ta"] .su-integral { display: none; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
+}
+
+/* =====================================================================
+   One-page landing (pages/HomePage.tsx): sticky navbar, the hero fills the
+   first screen, then How it works, Features and Pricing as sections.
+   --nav-h (navbar height + its top margin) is measured by HomePage.
+   ===================================================================== */
+.landing { min-height: 100vh; overflow-x: clip; }
+.landing > .navbar { position: sticky; top: 12px; }
+.landing .landing-hero { height: calc(100vh - var(--nav-h, 96px)); min-height: 480px; background: none; }
+.landing-rest { padding: 0 var(--gutter) 64px; }
+/* Side-by-side hero only (the stacked one has its own mask): the art has a hard bottom edge,
+   so it fades out at the bottom as well as on its left. */
+@media (min-width: 901px) and (min-aspect-ratio: 3/2) {
+  .landing .hero-art {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 22%), linear-gradient(#000 80%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, #000 22%), linear-gradient(#000 80%, transparent);
+    mask-composite: intersect;
+  }
+}
+.landing-section + .landing-section { margin-top: clamp(48px, 7vw, 96px); }
+.landing-rest .how-cta { margin-top: clamp(48px, 7vw, 96px); }
+/* A section reached from a navbar link stops below the sticky navbar, not under it. */
+.landing [id] { scroll-margin-top: calc(var(--nav-h, 96px) + 12px); }
+@media (max-width: 900px), (max-aspect-ratio: 3/2) {
+  .landing .landing-hero { height: auto; min-height: 0; }
+}
+/* The hero's leaves are cut off where the hero ends: fade them out instead. */
+.landing .hero-leaves {
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
 }

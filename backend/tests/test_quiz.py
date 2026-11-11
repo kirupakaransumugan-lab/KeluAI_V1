@@ -256,3 +256,12 @@ def test_commentary_in_an_option_rejects_the_step():
     leaky = STEPPED.replace("WRONG: $x = 4$", "WRONG: $x = 4$, but the student forgets to divide")
     [(*_, steps)] = parse_quiz(leaky)
     assert steps == []                                      # step 2 unusable -> question re-asked
+
+
+def test_bare_latex_environment_gets_display_delimiters():
+    from app.rag.quiz import ensure_math_delimiters
+    bare = r"\begin{aligned} y - 2 &= -(x + 2) \\ y &= -x \end{aligned}"
+    assert ensure_math_delimiters(bare) == f"$${bare}$$"
+    already = r"$y = -x$ and \begin{aligned} a &= b \end{aligned}"
+    assert ensure_math_delimiters(already) == already       # has delimiters: left alone
+    assert ensure_math_delimiters("plain words") == "plain words"

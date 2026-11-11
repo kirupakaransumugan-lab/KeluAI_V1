@@ -114,11 +114,12 @@ class AuthResponse(BaseModel):
 
 class ProvidersOut(BaseModel):
     google_client_id: str | None
+    microsoft_client_id: str | None
 
 
 class GoogleSignInRequest(BaseModel):
-    # The ID token (a JWT) that Google Identity Services gives the browser.
-    credential: str = Field(min_length=1, max_length=4096)
+    # The ID token (a JWT) that Google Identity Services, or MSAL.js for Microsoft, gives the browser.
+    credential: str = Field(min_length=1, max_length=8192)
     # Sent only by a first-time Google user, after the API answered "profile_required".
     profile: StudentProfileFields | None = None
 

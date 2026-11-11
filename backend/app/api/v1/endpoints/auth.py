@@ -5,6 +5,8 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.dependencies import ACCESS_COOKIE, get_current_user
 from app.core.google_auth import GoogleTokenError, verify_google_id_token
+from app.core.microsoft_auth import MicrosoftEmailUnverified, MicrosoftTokenError, verify_microsoft_id_token
+from app.core.social_identity import SocialIdentity
 from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.auth import (
@@ -75,7 +77,8 @@ def login(data: LoginRequest, response: Response, db: Session = Depends(get_db))
 @router.get("/providers", response_model=ProvidersOut)
 def providers() -> ProvidersOut:
     """Which social logins are switched on, so the frontend needs no extra config."""
-    return ProvidersOut(google_client_id=get_settings().google_client_id)
+    settings = get_settings()
+    return ProvidersOut(google_client_id=settings.google_client_id, microsoft_client_id=settings.microsoft_client_id)
 
 
 @router.post("/google", response_model=AuthResponse)
@@ -87,12 +90,31 @@ def google(data: GoogleSignInRequest, response: Response, db: Session = Depends(
         identity = verify_google_id_token(data.credential, client_id)
     except GoogleTokenError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "google_invalid"}) from None
+    return _social_sign_in(db, response, "google", identity, data)
 
+
+@router.post("/microsoft", response_model=AuthResponse)
+def microsoft(data: GoogleSignInRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+    client_id = get_settings().microsoft_client_id
+    if not client_id:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": "microsoft_disabled"})
     try:
-        user = auth_service.google_sign_in(db, identity, data.profile)
+        identity = verify_microsoft_id_token(data.credential, client_id)
+    except MicrosoftEmailUnverified:
+        # Some work/school accounts: Microsoft doesn't vouch for the email, so it can't be trusted.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "microsoft_email_unverified"}) from None
+    except MicrosoftTokenError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "microsoft_invalid"}) from None
+    return _social_sign_in(db, response, "microsoft", identity, data)
+
+
+def _social_sign_in(db: Session, response: Response, provider: auth_service.Provider,
+                    identity: SocialIdentity, data: GoogleSignInRequest) -> AuthResponse:
+    try:
+        user = auth_service.social_sign_in(db, provider, identity, data.profile)
     except auth_service.ProfileRequiredError as exc:
         # 428: "send this again with a profile". The frontend shows a short form,
-        # prefilled with what Google told us, then resends the same credential.
+        # prefilled with what the provider told us, then resends the same credential.
         raise HTTPException(
             status.HTTP_428_PRECONDITION_REQUIRED,
             detail={"code": "profile_required", "full_name": exc.identity.full_name, "email": exc.identity.email},

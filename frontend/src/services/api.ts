@@ -92,9 +92,11 @@ export interface GoogleProfileRequired {
 export const authApi = {
   register: (input: RegisterInput) => request<{ user: User }>("POST", "/auth/register", input),
   login: (email: string, password: string) => request<{ user: User }>("POST", "/auth/login", { email, password }),
-  providers: () => request<{ google_client_id: string | null }>("GET", "/auth/providers"),
+  providers: () => request<{ google_client_id: string | null; microsoft_client_id: string | null }>("GET", "/auth/providers"),
   google: (credential: string, profile?: StudentProfileInput) =>
     request<{ user: User }>("POST", "/auth/google", { credential, profile }),
+  microsoft: (credential: string, profile?: StudentProfileInput) =>
+    request<{ user: User }>("POST", "/auth/microsoft", { credential, profile }),
   forgotPassword: (email: string) => request<{ status: string }>("POST", "/auth/password/forgot", { email }),
   verifyResetCode: (email: string, code: string) =>
     request<{ reset_token: string }>("POST", "/auth/password/verify", { email, code }),
@@ -256,6 +258,8 @@ export interface AdminOverview {
   }[];
   revenue_per_month: { month: string; amount_lkr: number }[];      // "2026-11", oldest first
   latest_payments: { id: number; full_name: string; plan: string; amount_lkr: number; method: PaymentMethod; paid_at: string }[];
+  attention: AttentionItem[];        // whole platform, not scoped by the filters
+  ai_usage: AiUsageSummary;
 }
 
 /** A question the AI wrote, waiting for an admin's review. */
@@ -306,7 +310,7 @@ export interface AdminStudentRow {
 
 /** GET /admin/students/{id}: one student's page. */
 export interface AdminStudentDetail {
-  student: AdminStudentRow & { parent_email: string | null; has_password: boolean; google: boolean };
+  student: AdminStudentRow & { parent_email: string | null; has_password: boolean; google: boolean; microsoft: boolean };
   progress: Pick<ProgressReport, "has_answers" | "mastery" | "topics_covered" | "accuracy" | "streak" | "weekly" | "topics" | "recent">;
   activity: { start: string; days: { date: string; questions: number; future: boolean }[] }[];   // newest week first
   sessions: { set_id: number; kind: string; lang: Medium; at: string; questions: number; perfect: number; topics: string[] }[];
@@ -365,6 +369,29 @@ export interface AdminPlan extends PlanInfo {
 }
 export type PlanChanges = Partial<Pick<PlanInfo,
   "name_en" | "name_ta" | "price_lkr" | "blurb_en" | "blurb_ta" | "is_visible" | "highlight">>;
+
+/** Admin Overview > Needs attention (backend app/services/admin_attention.py). */
+export interface AttentionItem {
+  kind: "feedback" | "drafts" | "quiz_job" | "kb_upload" | "plans_ending" | "ai_failures";
+  severity: "info" | "warn" | "danger";
+  title: string;
+  detail: string;
+  count: number;
+  at: string | null;
+  link: string | null;
+}
+/** Admin Overview > AI usage (backend app/services/ai_usage.py). Days and months are Sri Lanka time. */
+export interface AiUsageTotals {
+  calls: number; failed: number; input_tokens: number; output_tokens: number; tokens: number;
+  cost_usd: number; priced_calls: number;
+}
+export interface AiUsageSummary {
+  today: AiUsageTotals;
+  month: AiUsageTotals;
+  by_purpose: { purpose: string; calls: number; tokens: number; failed: number }[];
+  top_models: { model: string; calls: number; tokens: number }[];
+  last_call_at: string | null;
+}
 
 /** Admin > Knowledge Base (backend app/services/knowledge_base.py). */
 export type KbType = "past_paper" | "marking_scheme" | "syllabus";

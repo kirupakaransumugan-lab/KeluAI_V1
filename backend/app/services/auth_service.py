@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Literal
 
 from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.clock import utcnow
 from app.core.config import get_settings
-from app.core.google_auth import GoogleIdentity
+from app.core.social_identity import SocialIdentity
 from app.core.security import BCRYPT_MAX_BYTES, hash_password, verify_password
 from app.models.password_reset import PasswordResetCode
 from app.models.progress import PracticeAnswer
@@ -24,14 +25,15 @@ class EmailTakenError(Exception):
 
 
 class ProfileRequiredError(Exception):
-    """First Google sign-in: we know who they are, but not their mobile/medium/exam year yet."""
+    """First Google/Microsoft sign-in: we know who they are, but not their mobile/medium/exam year yet."""
 
-    def __init__(self, identity: GoogleIdentity):
+    def __init__(self, identity: SocialIdentity):
         self.identity = identity
 
 
 def _new_student(
-    *, full_name: str, email: str, profile: StudentProfileFields, password_hash: str | None, google_sub: str | None
+    *, full_name: str, email: str, profile: StudentProfileFields, password_hash: str | None,
+    google_sub: str | None = None, microsoft_sub: str | None = None,
 ) -> User:
     """Build the user, their student profile and a 14-day trial (caller commits)."""
     now = utcnow()
@@ -41,6 +43,7 @@ def _new_student(
         mobile=profile.mobile,
         password_hash=password_hash,
         google_sub=google_sub,
+        microsoft_sub=microsoft_sub,
         role=Role.student,
         terms_accepted_at=now,
     )
@@ -81,17 +84,23 @@ def register_student(db: Session, data: RegisterRequest) -> User:
     return _commit_new_user(db, user)
 
 
-def google_sign_in(db: Session, identity: GoogleIdentity, profile: StudentProfileFields | None) -> User:
-    """Log in, link, or create the account for a verified Google identity."""
-    user = user_repository.get_by_google_sub(db, identity.sub)
+Provider = Literal["google", "microsoft"]
+_FIND_BY_SUB = {"google": user_repository.get_by_google_sub, "microsoft": user_repository.get_by_microsoft_sub}
+
+
+def social_sign_in(db: Session, provider: Provider, identity: SocialIdentity,
+                   profile: StudentProfileFields | None) -> User:
+    """Log in, link, or create the account for a verified Google or Microsoft identity."""
+    sub_field = f"{provider}_sub"
+    user = _FIND_BY_SUB[provider](db, identity.sub)
     if user:
         return user
 
     user = user_repository.get_by_email(db, identity.email)
     if user:
-        # Google has verified they own this inbox, so linking to the existing
-        # email account is safe; from now on either login method works.
-        user.google_sub = identity.sub
+        # The provider has verified they own this inbox (microsoft_auth refuses unverified
+        # emails), so linking to the existing account is safe; from now on any login method works.
+        setattr(user, sub_field, identity.sub)
         db.commit()
         return user
 
@@ -102,9 +111,13 @@ def google_sign_in(db: Session, identity: GoogleIdentity, profile: StudentProfil
         email=identity.email,
         profile=profile,
         password_hash=None,
-        google_sub=identity.sub,
+        **{sub_field: identity.sub},
     )
     return _commit_new_user(db, user)
+
+
+def google_sign_in(db: Session, identity: SocialIdentity, profile: StudentProfileFields | None) -> User:
+    return social_sign_in(db, "google", identity, profile)
 
 
 # Hash compared against when the email is unknown, so a missing account takes as
@@ -117,7 +130,7 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     if len(password.encode("utf-8")) > BCRYPT_MAX_BYTES:
         return None  # can never match: sign-up rejects passwords this long
     if user is None or user.password_hash is None:
-        # Unknown email, or a Google-only account with no password set.
+        # Unknown email, or a Google/Microsoft-only account with no password set.
         verify_password(password, _DUMMY_HASH)
         return None
     return user if verify_password(password, user.password_hash) else None

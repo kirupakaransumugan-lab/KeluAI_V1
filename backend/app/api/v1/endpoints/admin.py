@@ -14,7 +14,7 @@ from app.core.dependencies import get_current_user
 from app.models.user import Medium, Role, User
 from app.repositories import user_repository
 from app.schemas.auth import UserOut
-from app.services import admin_overview, admin_students, auth_service
+from app.services import admin_attention, admin_overview, admin_students, ai_usage, auth_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 OVERVIEW_DAYS = [7, 30, 90]         # the date-range presets on the Overview page
@@ -61,7 +61,11 @@ def overview(days: int = Query(30), medium: Literal["all", "en", "ta"] = Query("
     # Checked by hand: a Literal[7, 30, 90] query param rejects the string "7" from the URL.
     if days not in OVERVIEW_DAYS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"code": "bad_range", "allowed": OVERVIEW_DAYS})
-    return admin_overview.overview(db, days=days, medium=None if medium == "all" else Medium(medium))
+    data = admin_overview.overview(db, days=days, medium=None if medium == "all" else Medium(medium))
+    # Not scoped by the filters: they are about the whole platform right now.
+    data["attention"] = admin_attention.items(db)
+    data["ai_usage"] = ai_usage.summary(db)
+    return data
 
 
 # ---------- Students ----------

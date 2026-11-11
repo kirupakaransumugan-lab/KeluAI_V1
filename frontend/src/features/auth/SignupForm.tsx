@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { queueWelcome } from "../onboarding/WelcomeModal";
 import { useLanguage } from "../../app/providers";
 import { ArrowRight } from "../../components/ui/Button";
 import { ApiError, authApi, type User } from "../../services/api";
 import { Field, ICONS } from "./AuthField";
 import { GoogleButton, GoogleProfileForm, useGoogleSignIn } from "./GoogleSignIn";
+import { MicrosoftButton } from "./MicrosoftSignIn";
 import {
   examYears,
   passwordScore,
@@ -35,7 +37,9 @@ export function SignupForm() {
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<User>();
   const google = useGoogleSignIn(setCreated);
-  const [googleOff, setGoogleOff] = useState(false);
+  // A new student sees the welcome card when they open their dashboard.
+  useEffect(() => { if (created) queueWelcome(); }, [created]);
+  const [socialOff, setSocialOff] = useState<"socialSoon" | "microsoftSoon">();   // that button isn't set up yet
 
   const msg = (key?: string) => (key ? s.errors[key as keyof typeof s.errors] : undefined);
 
@@ -271,12 +275,17 @@ export function SignupForm() {
       </button>
 
       <p className="li-divider su-span"><span>{t.login.orContinue}</span></p>
-      <div className="li-social su-span su-social-one">
-        <GoogleButton onCredential={google.onCredential} onUnavailable={() => setGoogleOff(true)} />
+      <div className="li-social su-span">
+        <GoogleButton onCredential={google.onCredential} onUnavailable={() => setSocialOff("socialSoon")} />
+        <MicrosoftButton
+          onCredential={(token) => { setSocialOff(undefined); void google.onCredential(token, "microsoft"); }}
+          onUnavailable={() => setSocialOff("microsoftSoon")}
+          onFailed={() => google.setError("microsoft")}
+        />
       </div>
-      {(google.error || googleOff) && (
+      {(google.error || socialOff) && (
         <p className="su-form-error su-span" role="alert">
-          {googleOff ? t.login.socialSoon : google.error === "network" ? s.errors.network : t.login.errors.google}
+          {socialOff ? t.login[socialOff] : google.error === "network" ? s.errors.network : t.login.errors[google.error!]}
         </p>
       )}
 

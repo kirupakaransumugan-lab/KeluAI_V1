@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { queueWelcome } from "../onboarding/WelcomeModal";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
 import { ArrowRight } from "../../components/ui/Button";
 import { ApiError, authApi, type User } from "../../services/api";
 import { Field, ICONS, PasswordToggle } from "./AuthField";
 import { GoogleButton, GoogleProfileForm, useGoogleSignIn } from "./GoogleSignIn";
+import { MicrosoftButton } from "./MicrosoftSignIn";
 import { EMAIL_RE } from "./validation";
 
 type LoginErrors = Partial<Record<"email" | "password", "email" | "password">>;
@@ -25,7 +27,9 @@ export function LoginForm() {
 
   // Students land on their dashboard, admins on the admin overview.
   useEffect(() => {
-    if (user) navigate(user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
+    if (!user) return;
+    if (user.role !== "admin") queueWelcome();      // the dashboard shows the welcome card once
+    navigate(user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
   }, [user, navigate]);
   const shownError = formError ?? google.error;
 
@@ -136,10 +140,15 @@ export function LoginForm() {
 
       <p className="li-divider"><span>{l.orContinue}</span></p>
 
-      {/* Google shows its own button once GOOGLE_CLIENT_ID is set on the backend. Microsoft isn't built yet. */}
+      {/* Each button works once its client ID (GOOGLE_CLIENT_ID / MICROSOFT_CLIENT_ID) is set on the
+          backend; until then it explains that it's coming soon. */}
       <div className="li-social">
         <GoogleButton onCredential={google.onCredential} onUnavailable={() => setFormError("socialSoon")} />
-        <button type="button" onClick={() => setFormError("microsoftSoon")}>{ICONS.microsoft}{l.microsoft}</button>
+        <MicrosoftButton
+          onCredential={(token) => { setFormError(undefined); void google.onCredential(token, "microsoft"); }}
+          onUnavailable={() => setFormError("microsoftSoon")}
+          onFailed={() => google.setError("microsoft")}
+        />
       </div>
 
       <p className="li-alt">

@@ -1,7 +1,8 @@
-from dataclasses import dataclass
 from functools import lru_cache
 
 import jwt
+
+from app.core.social_identity import SocialIdentity
 
 GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
 GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"]
@@ -11,11 +12,7 @@ class GoogleTokenError(Exception):
     pass
 
 
-@dataclass(frozen=True)
-class GoogleIdentity:
-    sub: str
-    email: str
-    full_name: str
+GoogleIdentity = SocialIdentity   # the name the Google code and its tests have always used
 
 
 @lru_cache

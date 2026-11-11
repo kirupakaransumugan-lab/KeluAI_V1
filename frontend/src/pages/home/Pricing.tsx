@@ -1,9 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useLanguage } from "../app/providers";
-import { ArrowRight } from "../components/ui/Button";
-import { Navbar } from "../layouts/Navbar";
-import { plansApi, type PublicPlan } from "../services/api";
-import type { PlanCopy } from "../utils/i18n";
+import { useLanguage } from "../../app/providers";
+import { ArrowRight } from "../../components/ui/Button";
+import { plansApi, type PublicPlan } from "../../services/api";
+import type { PlanCopy } from "../../utils/i18n";
 
 // Names, prices, descriptions, which plans show and the "best value" badge come from GET /plans,
 // which admins edit on Admin > Plans. Until it answers (or if it can't), the backend defaults
@@ -83,7 +82,7 @@ function PlanCard({ plan, name, tagline, icon, price, variant, ribbon, note }: P
       <div className="plan-head">
         <span className="plan-icon">{icon}</span>
         <div>
-          <h2>{name}</h2>
+          <h3>{name}</h3>
           <p>{tagline}</p>
         </div>
       </div>
@@ -104,7 +103,8 @@ function PlanCard({ plan, name, tagline, icon, price, variant, ribbon, note }: P
   );
 }
 
-export function PricingPage() {
+/** "Pricing" on the landing page: plans from GET /plans and the trust strip. */
+export function Pricing() {
   const { t, lang } = useLanguage();
   const p = t.pricing;
   const fmt = (n: number) => n.toLocaleString(lang === "ta" ? "ta-LK" : "en-LK");
@@ -115,16 +115,14 @@ export function PricingPage() {
   const plans = live ?? DEFAULT_PLANS;
 
   return (
-    <div className="page page-flow how-page">
-      <Navbar />
-      <main className="how-main">
-        <section className="how-hero price-hero">
+    <section id="pricing" className="landing-section" aria-labelledby="pricing-title">
+        <div className="how-hero price-hero">
           <div className="how-hero-copy">
             <span className="pill pill-amber"><span className="pill-crown">{ICONS.crown}</span> {p.badge}</span>
-            <h1 className="price-title">
+            <h2 id="pricing-title" className="price-title">
               <span>{p.titleLine1}</span>
               <span className="accent">{p.titleLine2}</span>
-            </h1>
+            </h2>
             <p className="how-sub">{p.subtitle}</p>
           </div>
           <img className="price-bear" src="/pricing/bear-books.png" alt="" aria-hidden="true" />
@@ -137,7 +135,7 @@ export function PricingPage() {
             <path d="M40 6L72 62H10z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
             <path d="M40 6V62" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
           </svg>
-        </section>
+        </div>
 
         <ol className={`plans plans-${plans.length}`}>
           {plans.map((plan) => {
@@ -166,7 +164,6 @@ export function PricingPage() {
             <li key={label}>{TRUST_ICONS[i]}<span>{label}</span></li>
           ))}
         </ul>
-      </main>
-    </div>
+    </section>
   );
 }

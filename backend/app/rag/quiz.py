@@ -60,6 +60,11 @@ LEVELS = (
 )
 _PAPER_NAME = {"pure": "Paper I (Pure Mathematics)", "applied": "Paper II (Applied Mathematics)"}
 
+# How each step's four options must look: the bullet goes into _SYSTEM at {option_style}.
+# TODO(human): rewrite this rule to match the agreed answer style (what one option holds,
+# its length and layout, which LaTeX is allowed). It must start with "- ".
+_OPTION_STYLE = """- Every option is the working itself, written in LaTeX, on one or two lines."""
+
 _SYSTEM = """You write practice questions for Sri Lankan G.C.E. A/L Combined Mathematics,
 {paper}, Part A.
 
@@ -107,8 +112,8 @@ How to write the steps
   an arithmetic slip. Make it look like the RIGHT option (same form, similar
   length) so the student has to think. The three WRONG options must differ from
   each other and from the RIGHT one.
-- Every option is the working itself, written in LaTeX, on one or two lines.
-  Do not say in the option whether it is right or wrong, and never describe the
+{option_style}
+- Do not say in the option whether it is right or wrong, and never describe the
   mistake in it ("but the student forgets...", "incorrectly..."): the student must
   spot it. The explanation goes only in its WHY line.
 - No verdicts in options. The quiz is answered without feedback, so an option must
@@ -251,11 +256,25 @@ def strip_verdict(text: str) -> str:
     return out if out.endswith(".") else out + "."     # the cut took the sentence's full stop
 
 
+_BARE_ENV_RE = re.compile(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", re.S)
+
+
+def ensure_math_delimiters(text: str) -> str:
+    """'\\begin{aligned}...\\end{aligned}' written with no $$ around it shows as raw LaTeX.
+    Text with no maths delimiters at all gets each environment wrapped in $$...$$."""
+    if "$" in text or "\\[" in text or "\\(" in text:
+        return text
+    return _BARE_ENV_RE.sub(lambda m: f"$${m.group(0)}$$", text)
+
+
 def clean_step(step: QuizStep) -> QuizStep | None:
     """One RIGHT option plus up to three distinct WRONG ones, or None if the step is unusable."""
     if any(_COMMENTARY_RE.search(o.text) for o in step.options):
         return None
-    step = QuizStep(step.title, [StepOption(strip_verdict(o.text), o.why, o.correct) for o in step.options])
+    step = QuizStep(step.title, [
+        StepOption(ensure_math_delimiters(strip_verdict(o.text)), ensure_math_delimiters(o.why), o.correct)
+        for o in step.options
+    ])
     right = [o for o in step.options if o.correct and o.text]
     if len(right) != 1:
         return None
@@ -288,7 +307,8 @@ def parse_quiz(text: str) -> list[tuple[int, str, str, str, list[QuizStep]]]:
 
 def _system(language: str, strand: str) -> str:
     # GRAPH_FORMAT is appended after .format(): its JSON braces are not placeholders.
-    base = _SYSTEM.format(language_name="Tamil" if language == "ta" else "English", paper=_PAPER_NAME[strand])
+    base = _SYSTEM.format(language_name="Tamil" if language == "ta" else "English", paper=_PAPER_NAME[strand],
+                          option_style=_OPTION_STYLE)
     style = f"\n\n{TAMIL_STYLE}" if language == "ta" else ""
     return f"{base}\n\n{GRAPH_FORMAT}{style}"
 

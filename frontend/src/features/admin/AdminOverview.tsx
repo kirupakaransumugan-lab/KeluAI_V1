@@ -2,13 +2,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { icons } from "../dashboard/icons";
 import {
-  ApiError, adminApi, type AdminKpi, type AdminOverview as Overview, type MediumFilter, type OverviewDays,
+  ApiError, adminApi, type AdminKpi, type AdminOverview as Overview, type AiUsageSummary, type AttentionItem,
+  type MediumFilter, type OverviewDays,
 } from "../../services/api";
 import { SignupsChart } from "./SignupsChart";
 
-// Admin Overview. Real numbers come from GET /admin/overview (users, profiles, subscriptions).
-// Payments, revenue, AI usage and learning progress are not recorded anywhere yet, so their
-// cards say "not tracked yet" and what would fill them - never a made-up number.
+// Admin Overview. Real numbers come from GET /admin/overview (users, profiles, subscriptions,
+// payments, open work items and AI usage). Anything still not recorded says "not tracked yet"
+// and what would fill it - never a made-up number.
 
 const RANGES: { days: OverviewDays; label: string }[] = [
   { days: 7, label: "Last 7 days" }, { days: 30, label: "Last 30 days" }, { days: 90, label: "Last 90 days" },
@@ -85,6 +86,102 @@ function RevenueBars({ months }: { months: Overview["revenue_per_month"] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const ATTENTION_ICON: Record<AttentionItem["kind"], ReactNode> = {
+  feedback: icons.chat, drafts: icons.layers, quiz_job: icons.layers, kb_upload: icons.database,
+  plans_ending: icons.crown, ai_failures: icons.cpu,
+};
+const PURPOSE: Record<string, string> = {
+  tutor: "AI tutor", quiz: "Practice quizzes", ocr: "OCR (scanned papers)", feedback_review: "Feedback reviews", other: "Other",
+};
+const ago = (iso: string | null) => {
+  if (!iso) return "";
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)} h ago`;
+  return new Date(iso).toLocaleDateString("en-LK", { day: "numeric", month: "short" });
+};
+/** Tokens as 1.2k / 3.4M, so big numbers stay readable on a small card. */
+const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
+
+function NeedsAttention({ items }: { items: AttentionItem[] }) {
+  if (!items.length) {
+    return (
+      <div className="ad-att-clear">
+        <span aria-hidden="true">{icons.check}</span>
+        <p><strong>All clear.</strong> No student reports, drafts, failed jobs, plans about to end or AI errors right now.</p>
+      </div>
+    );
+  }
+  return (
+    <ul className="ad-att">
+      {items.map((it) => {
+        const body = (
+          <>
+            <span className={`ad-att-icon ${it.severity}`} aria-hidden="true">{ATTENTION_ICON[it.kind]}</span>
+            <span className="ad-att-copy">
+              <strong>{it.title}</strong>
+              <small>{it.detail}</small>
+            </span>
+            <span className="ad-att-meta">
+              {it.at && <small>{ago(it.at)}</small>}
+              {it.link && icons.chevronRight}
+            </span>
+          </>
+        );
+        return (
+          <li key={it.kind}>
+            {it.link ? <Link to={it.link} className="ad-att-row">{body}</Link> : <div className="ad-att-row">{body}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function AiUsage({ u }: { u: AiUsageSummary }) {
+  if (!u.month.calls) {
+    return (
+      <p className="ad-muted ad-pad">
+        No AI calls recorded this month yet. Every tutor reply, quiz question, OCR page and feedback review is counted from now on.
+      </p>
+    );
+  }
+  const most = Math.max(1, ...u.by_purpose.map((p) => p.calls));
+  const cost = (t: AiUsageSummary["today"]) => (t.priced_calls ? `$${t.cost_usd.toFixed(t.cost_usd < 1 ? 4 : 2)}` : "cost not reported");
+  const tiles: [string, AiUsageSummary["today"]][] = [["Today", u.today], ["This month", u.month]];
+  return (
+    <div className="ad-ai">
+      <div className="ad-ai-tiles">
+        {tiles.map(([label, t]) => (
+          <div key={label} className="ad-ai-tile">
+            <small>{label}</small>
+            <strong>{num(t.calls)} <span>calls</span></strong>
+            <span className="ad-muted">{short(t.tokens)} tokens · {cost(t)}</span>
+            {t.failed > 0 && <span className="ad-ai-failed">{num(t.failed)} failed</span>}
+          </div>
+        ))}
+      </div>
+      <ul className="ad-ai-bars" aria-label="Calls this month by feature">
+        {u.by_purpose.map((p) => (
+          <li key={p.purpose}>
+            <span>{PURPOSE[p.purpose] ?? p.purpose}</span>
+            <span className="ad-ai-track"><i style={{ width: `${(100 * p.calls) / most}%` }} /></span>
+            <span className="ad-num">{num(p.calls)}</span>
+          </li>
+        ))}
+      </ul>
+      {u.top_models.length > 0 && (
+        <p className="ad-ai-models ad-muted">Models: {u.top_models.map((m) => `${m.model} (${num(m.calls)})`).join(" · ")}</p>
+      )}
+      <p className="ad-ai-note ad-muted">
+        Cost counts only what OpenRouter reported ({num(u.month.priced_calls)} of {num(u.month.calls)} calls this month).
+        {u.last_call_at ? ` Last call ${ago(u.last_call_at)}.` : ""}
+      </p>
+    </div>
   );
 }
 
@@ -191,11 +288,12 @@ export function AdminOverview() {
         </div>
 
         <div className="ad-row">
-          <Card icon={icons.alert} tone="coral" title="Needs attention" sub="Items that require admin action, newest first.">
-            <NotTracked text="Pending or failed payments, failed knowledge-base uploads and questions reported by students will be listed here once they are recorded." />
+          <Card icon={icons.alert} tone="coral" title="Needs attention" sub="Items that require admin action, newest first."
+            action={data && data.attention.length > 0 ? <span className="ad-att-count">{data.attention.length}</span> : undefined}>
+            {data ? <NeedsAttention items={data.attention} /> : <div className="ad-chart-placeholder" />}
           </Card>
-          <Card icon={icons.cpu} tone="plum" title="AI usage" sub="AI and OCR usage, to keep an eye on cost.">
-            <NotTracked text="AI calls are not logged yet. Logging tokens per request would fill tokens today and this month." />
+          <Card icon={icons.cpu} tone="plum" title="AI usage" sub="AI and OCR usage, to keep an eye on cost (Sri Lanka time).">
+            {data ? <AiUsage u={data.ai_usage} /> : <div className="ad-chart-placeholder" />}
           </Card>
         </div>
 

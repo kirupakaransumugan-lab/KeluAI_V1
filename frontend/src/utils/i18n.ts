@@ -26,6 +26,14 @@ export interface Copy {
 }
 
 /** Student dashboard. "{n}" is replaced with a number, "{name}" with the student's first name. */
+export interface WelcomeCopy {
+  hello: string; title: string; subtitle: string; videoTitle: string; videoSoon: string; fullSoon: string;
+  steps: { title: string; text: string }[];
+  fullTitle: string; fullText: string; fullWatch: string; fullVideoTitle: string; backToMain: string;
+  go: string; skip: string; close: string;
+  redirect: string; stay: string;
+}
+
 export interface DashboardCopy {
   nav: {
     home: string; practice: string; tutor: string; pastPapers: string; progress: string;
@@ -77,6 +85,7 @@ export interface DashboardCopy {
   pastPapers: PastPapersCopy;
   progress: ProgressCopy;
   subscription: SubscriptionCopy;
+  welcome: WelcomeCopy;
   settings: SettingsCopy;
 }
 
@@ -442,7 +451,7 @@ export interface LoginCopy {
   microsoftSoon: string;
   noAccount: string;
   signUp: string;
-  errors: { email: string; password: string; invalid: string; disabled: string; network: string; generic: string; google: string };
+  errors: { email: string; password: string; invalid: string; disabled: string; network: string; generic: string; google: string; microsoft: string; microsoftUnverified: string };
   /** One-time form after a first Google sign-in (field labels come from SignupCopy). */
   googleProfile: { heading: string; intro: string; submit: string; submitting: string; back: string };
   successTitle: string;
@@ -800,7 +809,7 @@ const en: Copy = {
     orContinue: "or continue with",
     google: "Continue with Google",
     microsoft: "Continue with Microsoft",
-    socialSoon: "Google and Microsoft sign-in are coming soon. Please log in with your email for now.",
+    socialSoon: "Google sign-in is coming soon. Please log in with your email for now.",
     microsoftSoon: "Microsoft sign-in is coming soon. Please use Google or your email for now.",
     noAccount: "Don’t have an account?",
     signUp: "Sign up for free",
@@ -812,6 +821,8 @@ const en: Copy = {
       network: "We couldn't reach KELU. Check your connection and try again.",
       generic: "Something went wrong. Please try again.",
       google: "Google sign-in didn't work. Please try again.",
+      microsoft: "Microsoft sign-in didn't work. Please try again.",
+      microsoftUnverified: "This Microsoft work or school account can't be used here. Please use a personal Microsoft account (Outlook or Hotmail), or your email.",
     },
     googleProfile: {
       heading: "Almost there",
@@ -1077,6 +1088,29 @@ const en: Copy = {
       colDate: "Date",
       kinds: { practice: "Practice" },
       mixedTopics: "Mixed topics",
+    },
+    welcome: {
+      hello: "Hi {name},",
+      title: "Welcome to KELU!",
+      subtitle: "Your AI tutor for A/L Combined Mathematics. Watch this short video to see how it works.",
+      videoTitle: "How to use KELU",
+      videoSoon: "The video is coming soon. Here is what you can do:",
+      fullSoon: "This video is coming soon. You can already start the quiz from your Practice page.",
+      steps: [
+        { title: "Ask the AI tutor", text: "Type a question or send a photo. You get hints step by step, from real past papers." },
+        { title: "Practise by subject", text: "Pick a topic and solve 5 questions, from easy to hard, with guided steps." },
+        { title: "Build your streak", text: "Practise every day and watch your progress and weak topics improve." },
+      ],
+      fullTitle: "Full syllabus quiz is open for you",
+      fullText: "You are in your exam year, so you can take the 10-question quiz covering the whole syllabus.",
+      fullWatch: "Watch how it works",
+      fullVideoTitle: "The full syllabus quiz",
+      backToMain: "Back to the welcome video",
+      go: "Go to my dashboard",
+      skip: "Skip intro",
+      close: "Close",
+      redirect: "Taking you to your dashboard in {n}...",
+      stay: "Stay here",
     },
     subscription: {
       title: "Subscription", subtitle: "Your plan, trial days and plan history.",
@@ -1486,7 +1520,7 @@ const ta: Copy = {
     orContinue: "அல்லது இதன் மூலம் தொடருங்கள்",
     google: "Google மூலம் தொடருங்கள்",
     microsoft: "Microsoft மூலம் தொடருங்கள்",
-    socialSoon: "Google, Microsoft மூலம் உள்நுழைவு விரைவில் வரும். இப்போதைக்கு மின்னஞ்சல் மூலம் உள்நுழையுங்கள்.",
+    socialSoon: "Google மூலம் உள்நுழைவு விரைவில் வரும். இப்போதைக்கு மின்னஞ்சல் மூலம் உள்நுழையுங்கள்.",
     microsoftSoon: "Microsoft மூலம் உள்நுழைவு விரைவில் வரும். இப்போதைக்கு Google அல்லது மின்னஞ்சலைப் பயன்படுத்துங்கள்.",
     noAccount: "கணக்கு இல்லையா?",
     signUp: "இலவசமாகப் பதிவு செய்யுங்கள்",
@@ -1498,6 +1532,8 @@ const ta: Copy = {
       network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
       generic: "ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயலுங்கள்.",
       google: "Google மூலம் உள்நுழைய முடியவில்லை. மீண்டும் முயலுங்கள்.",
+      microsoft: "Microsoft மூலம் உள்நுழைய முடியவில்லை. மீண்டும் முயலுங்கள்.",
+      microsoftUnverified: "இந்த Microsoft பணி அல்லது பாடசாலைக் கணக்கை இங்கு பயன்படுத்த முடியாது. தனிப்பட்ட Microsoft கணக்கையோ (Outlook, Hotmail) மின்னஞ்சலையோ பயன்படுத்துங்கள்.",
     },
     googleProfile: {
       heading: "இன்னும் சிறிது",
@@ -1763,6 +1799,29 @@ const ta: Copy = {
       colDate: "திகதி",
       kinds: { practice: "பயிற்சி" },
       mixedTopics: "பல்வேறு தலைப்புகள்",
+    },
+    welcome: {
+      hello: "வணக்கம் {name},",
+      title: "KELU இற்கு வரவேற்கிறோம்!",
+      subtitle: "க.பொ.த உயர்தர இணைந்த கணிதத்துக்கான உங்கள் AI ஆசிரியர். இது எப்படி வேலை செய்கிறது என்பதை இந்தச் சிறிய காணொளியில் பாருங்கள்.",
+      videoTitle: "KELU ஐ எப்படிப் பயன்படுத்துவது",
+      videoSoon: "காணொளி விரைவில் வரும். நீங்கள் செய்யக்கூடியவை:",
+      fullSoon: "இந்தக் காணொளி விரைவில் வரும். பயிற்சிப் பக்கத்திலிருந்து இப்போதே வினாடி வினாவைத் தொடங்கலாம்.",
+      steps: [
+        { title: "AI ஆசிரியரிடம் கேளுங்கள்", text: "வினாவைத் தட்டச்சு செய்யுங்கள் அல்லது புகைப்படம் அனுப்புங்கள். கடந்தகால வினாத்தாள்களிலிருந்து படிப்படியான குறிப்புகளைப் பெறுவீர்கள்." },
+        { title: "பாடவாரியாகப் பயிற்சி", text: "ஒரு தலைப்பைத் தெரிவுசெய்து, எளிதிலிருந்து கடினம் வரை 5 வினாக்களை வழிகாட்டலுடன் தீருங்கள்." },
+        { title: "தொடர் நாட்களை உருவாக்குங்கள்", text: "ஒவ்வொரு நாளும் பயிற்சி செய்து, உங்கள் முன்னேற்றத்தையும் பலவீனமான தலைப்புகளையும் பாருங்கள்." },
+      ],
+      fullTitle: "முழுப் பாடத்திட்ட வினாடி வினா உங்களுக்குத் திறந்துள்ளது",
+      fullText: "நீங்கள் பரீட்சை ஆண்டில் இருப்பதால், முழுப் பாடத்திட்டத்தையும் உள்ளடக்கிய 10 வினாக்கள் கொண்ட வினாடி வினாவைச் செய்யலாம்.",
+      fullWatch: "எப்படி என்று பாருங்கள்",
+      fullVideoTitle: "முழுப் பாடத்திட்ட வினாடி வினா",
+      backToMain: "வரவேற்புக் காணொளிக்குத் திரும்பு",
+      go: "எனது முகப்புக்குச் செல்",
+      skip: "அறிமுகத்தைத் தவிர்",
+      close: "மூடு",
+      redirect: "{n} வினாடிகளில் உங்கள் முகப்புக்குச் செல்கிறோம்...",
+      stay: "இங்கேயே இரு",
     },
     subscription: {
       title: "சந்தா", subtitle: "உங்கள் திட்டம், சோதனை நாட்கள், திட்ட வரலாறு.",

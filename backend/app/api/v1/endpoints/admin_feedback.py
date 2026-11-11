@@ -23,7 +23,7 @@ router = APIRouter(prefix="/admin/feedback", tags=["admin"])
 def get_review_llm():
     from app.api.v1.endpoints.tutor import _llm
 
-    return _llm()
+    return _llm("feedback_review")
 
 
 def _open(db: Session, feedback_id: int) -> QuestionFeedback:

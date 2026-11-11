@@ -508,7 +508,7 @@ function ActivityTab({ d }: { d: Detail }) {
           <div><dt>Parent email</dt><dd>{s.parent_email ?? "—"}</dd></div>
           <div><dt>Medium</dt><dd>{s.medium ? MEDIUM[s.medium] : "—"}</dd></div>
           <div><dt>A/L exam year</dt><dd>{s.al_exam_year ?? "—"}</dd></div>
-          <div><dt>Signs in with</dt><dd>{[s.has_password && "Password", s.google && "Google"].filter(Boolean).join(" + ") || "—"}</dd></div>
+          <div><dt>Signs in with</dt><dd>{[s.has_password && "Password", s.google && "Google", s.microsoft && "Microsoft"].filter(Boolean).join(" + ") || "—"}</dd></div>
           <div><dt>Last active</dt><dd>{ago(s.last_active_at)}</dd></div>
         </dl>
       </Panel>

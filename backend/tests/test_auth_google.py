@@ -25,7 +25,7 @@ def google_on(monkeypatch):
 
 
 def test_providers_reports_google_client_id(client, google_on):
-    assert client.get("/api/v1/auth/providers").json() == {"google_client_id": "test-client-id"}
+    assert client.get("/api/v1/auth/providers").json() == {"google_client_id": "test-client-id", "microsoft_client_id": None}
 
 
 def test_google_disabled_without_client_id(client):

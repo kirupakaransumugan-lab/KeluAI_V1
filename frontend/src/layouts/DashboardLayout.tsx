@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
+import { WelcomeModal, takeWelcome } from "../features/onboarding/WelcomeModal";
 import { useLanguage } from "../app/providers";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { icons } from "../features/dashboard/icons";
@@ -35,6 +36,7 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const autoHide = !!useMatch("/dashboard/tutor/*");
   const [user, setUser] = useState<User>();
+  const [welcome, setWelcome] = useState(false);         // the after-login welcome card
   const [menuOpen, setMenuOpen] = useState(false);       // mobile sidebar
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
@@ -43,7 +45,12 @@ export function DashboardLayout() {
     authApi.me().then((u) => {
       // Admins have no student profile; their home is the admin area.
       if (u.role === "admin") navigate("/admin", { replace: true });
-      else setUser(u);
+      else {
+        setUser(u);
+        // Only ever switch it on: StrictMode runs this twice, and the card clears the login flag
+        // once shown, so a second "false" here would hide the card it just opened.
+        if (takeWelcome()) setWelcome(true);
+      }
     }, (err) => {
       if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });
     });
@@ -153,6 +160,7 @@ export function DashboardLayout() {
           </main>
         )}>
           <Outlet context={{ user, setUser } satisfies DashboardContext} />
+          {welcome && <WelcomeModal user={user} onClose={() => setWelcome(false)} />}
         </ErrorBoundary>
       </div>
     </div>

@@ -18,15 +18,38 @@ OpenRouter specifics handled here:
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
 REASONING_HEADROOM = 4096
 ANSWER_NOW = "(No more lookups are available. Answer the student now using the results above.)"
+
+log = logging.getLogger(__name__)
+
+# Called after every OpenRouter call with (purpose, model, input_tokens, output_tokens, cost_usd,
+# ok, error). The API registers one that writes ai_usage rows (app/services/ai_usage.py); with
+# none set (tests, scripts) nothing is recorded. A failing recorder never breaks the AI call.
+UsageRecorder = Callable[[str, str, int, int, "float | None", bool, "str | None"], None]
+_recorder: UsageRecorder | None = None
+
+
+def set_usage_recorder(recorder: UsageRecorder | None) -> None:
+    global _recorder
+    _recorder = recorder
+
+
+def _record(*args) -> None:
+    if _recorder is None:
+        return
+    try:
+        _recorder(*args)
+    except Exception:
+        log.warning("could not record AI usage", exc_info=True)
 
 
 @dataclass
@@ -61,8 +84,9 @@ class OpenRouterLLM:
     """Satisfies tutor_agent.LLMClient: create(**anthropic_style_kwargs)."""
 
     def __init__(self, api_key: str, base_url: str = OPENROUTER_URL, timeout: float = 120,
-                 temperature: float | None = None):
+                 temperature: float | None = None, purpose: str = "other"):
         self.temperature = temperature
+        self.purpose = purpose          # what the calls are for, in the admin's AI usage figures
         self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={
             "Authorization": f"Bearer {api_key}",
             "X-Title": "KELU tutor",        # shown on the OpenRouter usage page
@@ -94,13 +118,22 @@ class OpenRouterLLM:
             body["tools"] = [{"type": "function", "function": {
                 "name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
                 for t in tools]
-        r = self._http.post("/chat/completions", json=body)
+        try:
+            r = self._http.post("/chat/completions", json=body)
+        except httpx.HTTPError as e:
+            _record(self.purpose, names[0], 0, 0, None, False, f"network: {type(e).__name__}")
+            raise
         data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         if r.status_code >= 400 or "error" in data:
             err = data.get("error") or {}
             msg = err.get("message") if isinstance(err, dict) else err
+            _record(self.purpose, names[0], 0, 0, None, False, f"{r.status_code}: {msg or ''}"[:200])
             raise RuntimeError(f"OpenRouter {r.status_code}: {msg or r.text[:300]}")
-        return _from_response(data, allow_calls=bool(tools))
+        resp = _from_response(data, allow_calls=bool(tools))
+        cost = (data.get("usage") or {}).get("cost")
+        _record(self.purpose, data.get("model") or names[0], resp.usage.input_tokens, resp.usage.output_tokens,
+                float(cost) if isinstance(cost, (int, float)) else None, True, None)
+        return resp
 
 
 def _has_tool_history(messages: list[dict]) -> bool:

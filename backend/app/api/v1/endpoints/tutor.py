@@ -68,17 +68,17 @@ def _retriever() -> Retriever:
     return Retriever(store, embedder, top_k=s.retrieval_top_k, min_score=s.retrieval_min_score)
 
 
-def _llm():
+def _llm(purpose: str = "other"):
     s = get_rag_settings()
     try:
-        return build_llm(s.openrouter_api_key, s.openrouter_base_url, temperature=s.llm_temperature)
+        return build_llm(s.openrouter_api_key, s.openrouter_base_url, temperature=s.llm_temperature, purpose=purpose)
     except LLMNotConfigured:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": "tutor_not_configured"}) from None
 
 
 def get_agent() -> TutorAgent:
     s = get_rag_settings()
-    return TutorAgent(_llm(), _retriever(), model=s.llm_model,
+    return TutorAgent(_llm("tutor"), _retriever(), model=s.llm_model,
                       max_rounds=s.agent_max_tool_rounds, max_tokens=s.agent_max_output_tokens,
                       search_first=s.agent_search_first, vision_model=s.vision_model,
                       tamil_model=s.tamil_model)
@@ -86,7 +86,7 @@ def get_agent() -> TutorAgent:
 
 def get_quiz_generator() -> QuizGenerator:
     s = get_rag_settings()
-    return QuizGenerator(_llm(), _retriever(), model=s.quiz_model or s.llm_model, tamil_model=s.tamil_model)
+    return QuizGenerator(_llm("quiz"), _retriever(), model=s.quiz_model or s.llm_model, tamil_model=s.tamil_model)
 
 
 def _scope(user: User) -> AccessScope:

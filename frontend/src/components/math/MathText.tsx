@@ -126,8 +126,18 @@ function layout(text: string): ReactNode[] {
   });
 }
 
+// A model sometimes writes "\begin{aligned} ... \end{aligned}" with no $$ around it, which
+// would show as raw LaTeX. Text with no delimiters at all gets its environments wrapped.
+// (Quizzes saved in the browser before the backend fix need this too.)
+const BARE_ENV = /\\begin\{(\w+\*?)\}[\s\S]*?\\end\{\1\}/g;
+
+function withDelimiters(text: string): string {
+  if (/\$|\\\[|\\\(/.test(text)) return text;
+  return text.replace(BARE_ENV, (env) => `$$${env}$$`);
+}
+
 export function MathText({ text, className }: { text: string; className?: string }) {
-  const nodes = useMemo(() => layout(text), [text]);
+  const nodes = useMemo(() => layout(withDelimiters(text)), [text]);
   return <div className={`mt-text${className ? ` ${className}` : ""}`}>{nodes}</div>;
 }
 
