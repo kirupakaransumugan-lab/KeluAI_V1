@@ -5,6 +5,9 @@ import { icons } from "../dashboard/icons";
 import type { QuizState } from "./practiceStore";
 import { topicGlyph } from "./topicIcon";
 
+/** Colour band for a topic's score: the same 40 / 75 cut-offs as the progress pages. */
+const scoreBand = (pct: number) => (pct >= 75 ? "good" : pct >= 40 ? "mid" : "low");
+
 /** Every topic, always in view: clicking one starts its quiz in the background (or opens the one
  *  already under way), and each tile shows how that quiz is coming along. */
 export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusText, starting, error, onPick, onNewQuiz, onStartFull }: {
@@ -33,7 +36,8 @@ export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusTex
         {list.map((s) => {
           const state = live(s.key);
           return (
-            <button key={s.key} type="button" className={`pr-subject${state ? ` live ${state.state}` : ""}`} onClick={() => onPick(s.key)}>
+            <button key={s.key} type="button" onClick={() => onPick(s.key)}
+              className={`pr-subject ${s.strand}${state ? ` live ${state.state}` : ""}${s.pct === null ? " new" : ` ${scoreBand(s.pct)}`}`}>
               <span className="pr-glyph" aria-hidden="true">{topicGlyph(s.name.en)}</span>
               <span className="pr-subject-copy">
                 <strong>{s.name[lang]}</strong>
@@ -49,7 +53,10 @@ export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusTex
                   </>
                 )}
               </span>
-              {icons.chevronRight}
+              <span className="pr-subject-go" aria-hidden="true">{icons.chevronRight}</span>
+              {!state && s.pct !== null && (
+                <span className="pr-subject-bar" aria-hidden="true"><span style={{ width: `${Math.max(s.pct, 3)}%` }} /></span>
+              )}
             </button>
           );
         })}

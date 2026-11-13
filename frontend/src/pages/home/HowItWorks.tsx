@@ -1,4 +1,5 @@
 import { useLanguage } from "../../app/providers";
+import { homeFor, useSession } from "../../app/session";
 import { ArrowRight, Button } from "../../components/ui/Button";
 import { TryDemo } from "./TryDemo";
 
@@ -67,6 +68,7 @@ export function HowItWorks() {
 /** The closing sign-up card, once at the end of the landing page. */
 export function SignupCta() {
   const { t } = useLanguage();
+  const user = useSession();
   const h = t.how;
 
   return (
@@ -84,10 +86,10 @@ export function SignupCta() {
         </ul>
       </div>
       <div className="how-cta-action">
-        <Button href="/signup" className="btn-lg">
-          {h.ctaButton} <ArrowRight />
+        <Button href={user ? homeFor(user) : "/signup"} className="btn-lg">
+          {user ? t.nav.dashboard : h.ctaButton} <ArrowRight />
         </Button>
-        <small>{h.ctaNote1} · {h.ctaNote2}</small>
+        {!user && <small>{h.ctaNote1} · {h.ctaNote2}</small>}
       </div>
     </section>
   );

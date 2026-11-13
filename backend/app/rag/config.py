@@ -4,7 +4,8 @@ Kept apart from app.core.config so the RAG layer, its CLI and its tests run
 without a database or JWT secret.
 
 Every LLM call (tutor chat, quiz, OCR) goes through OpenRouter. Embeddings stay
-local (BGE-M3), so only one API key is needed: LLM_API_KEY (or OPENROUTER_API_KEY).
+local (BGE-M3). Students use LLM_API_KEY (or OPENROUTER_API_KEY); admin-only work
+(quiz-bank generation, feedback review) uses LLM_API_KEY2.
 """
 from functools import lru_cache
 from pathlib import Path
@@ -50,9 +51,19 @@ class RagSettings(BaseSettings):
                                                         # (and garble Tamil) at the default 1.0
                                                         # (set it if llm_model can't read images)
     quiz_model: str | None = None                       # None = llm_model
+
+    # Admin-only AI: a separate key (LLM_API_KEY2) so admin quiz-bank generation and feedback
+    # review are billed and rate-limited apart from student traffic. Students never use it.
+    admin_llm_api_key: str | None = Field(None, validation_alias=AliasChoices("LLM_API_KEY2", "ADMIN_LLM_API_KEY"))
+    admin_quiz_model: str | None = None                 # bank drafts; None = quiz_model / llm_model
+    admin_llm_temperature: float = 0.2                  # drafts are reviewed and stored: favour
+                                                        # correct working over variety
+
     agent_max_tool_rounds: int = 4
     agent_search_first: bool = True             # always search papers first; answer only from them
     agent_max_output_tokens: int = 1600         # room for a ```graph block on top of the working
+    agent_reasoning_tokens: int = 1536          # hidden thinking per tutor reply (quizzes keep 4096):
+                                                # less thinking = a faster first word for the student
 
     # OCR (scanned past papers -> text) with an OpenRouter vision model.
     ocr_model: str = "anthropic/claude-sonnet-5.5"

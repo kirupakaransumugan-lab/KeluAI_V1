@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.rag.quiz import PRACTICE_SIZE, NoQuestionsIndexed, QuizGenerator, QuizIncomplete
 from app.rag.retrieval import Retriever
+from app.rag.tamil_text import question_language
 from app.rag.types import AccessScope, TutorMode
 from app.rag.vector_store import VectorStore
 from app.services import quiz_bank, quiz_plan
@@ -68,17 +69,40 @@ def _retriever() -> Retriever:
     return Retriever(store, embedder, top_k=s.retrieval_top_k, min_score=s.retrieval_min_score)
 
 
-def _llm(purpose: str = "other"):
+def _llm(purpose: str = "other", reasoning_tokens: int | None = None):
     s = get_rag_settings()
     try:
-        return build_llm(s.openrouter_api_key, s.openrouter_base_url, temperature=s.llm_temperature, purpose=purpose)
+        return build_llm(s.openrouter_api_key, s.openrouter_base_url, temperature=s.llm_temperature, purpose=purpose,
+                         reasoning_tokens=reasoning_tokens)
     except LLMNotConfigured:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": "tutor_not_configured"}) from None
 
 
+def _admin_api_key(s) -> str | None:
+    """Which key admin-only AI work runs on. Students never reach this.
+    Strict: LLM_API_KEY2 only, never LLM_API_KEY (that key is for students only)."""
+    return s.admin_llm_api_key
+
+
+def _admin_llm(purpose: str):
+    """Admin-only AI (quiz-bank drafts, feedback review), on LLM_API_KEY2."""
+    s = get_rag_settings()
+    try:
+        return build_llm(_admin_api_key(s), s.openrouter_base_url, temperature=s.admin_llm_temperature,
+                         purpose=purpose)
+    except LLMNotConfigured:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail={"code": "admin_ai_not_configured"}) from None
+
+
+def get_admin_quiz_generator() -> QuizGenerator:
+    s = get_rag_settings()
+    return QuizGenerator(_admin_llm("admin_quiz"), _retriever(),
+                         model=s.admin_quiz_model or s.quiz_model or s.llm_model, tamil_model=s.tamil_model)
+
+
 def get_agent() -> TutorAgent:
     s = get_rag_settings()
-    return TutorAgent(_llm("tutor"), _retriever(), model=s.llm_model,
+    return TutorAgent(_llm("tutor", s.agent_reasoning_tokens), _retriever(), model=s.llm_model,
                       max_rounds=s.agent_max_tool_rounds, max_tokens=s.agent_max_output_tokens,
                       search_first=s.agent_search_first, vision_model=s.vision_model,
                       tamil_model=s.tamil_model)
@@ -112,14 +136,17 @@ def chat(req: ChatRequest, user: User = Depends(get_current_user),
         except BadImage as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": e.code}) from None
     try:
-        res = agent.reply(scope=_scope(user), mode=req.mode, language=req.lang, hint_level=req.hint_level,
+        # Answer in the language of the question (a Tamil question gets a Tamil answer even when
+        # the app is in English); a question that is only maths keeps the app's language.
+        lang = question_language(req.history[-1].content) or req.lang
+        res = agent.reply(scope=_scope(user), mode=req.mode, language=lang, hint_level=req.hint_level,
                           history=[t.model_dump() for t in req.history[-HISTORY_TURNS:]], image=image)
     except Exception:
         log.exception("tutor reply failed for user %s", user.id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail={"code": "tutor_failed"}) from None
     return {"content": res.content, "sources": res.sources, "tool_calls": res.tool_calls,
             "tokens": res.tokens_used, "truncated": res.truncated, "model": res.model_name,
-            "hint_level": res.hint_level}
+            "hint_level": res.hint_level, "lang": lang}
 
 
 @router.post("/quiz/set")

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
-import { MathText, speakable } from "../../components/math/MathText";
+import { MathText, speakable, unescapeDoubled } from "../../components/math/MathText";
 import type { DashboardContext } from "../../layouts/DashboardLayout";
 import { ApiError, tutorApi, type ChatTurn, type TutorSource } from "../../services/api";
 import { fill } from "../../utils/dates";
@@ -126,7 +126,7 @@ export function TutorPage() {
 
   async function send(text: string, opts: { hintLevel?: number; fresh?: boolean; withImage?: boolean } = {}) {
     const image = opts.withImage ? attachment : null;
-    const body = text.trim() || (image ? tt.image.onlyMessage : "");
+    const body = unescapeDoubled(text.trim()) || (image ? tt.image.onlyMessage : "");
     if (!body || pendingId || limitReached) return;
     const now = Date.now();
     const base: Conversation = (!opts.fresh && active) || {
@@ -241,8 +241,13 @@ export function TutorPage() {
       setSpeakingId(null);
       return;
     }
-    const u = new SpeechSynthesisUtterance(speakable(m.content));
-    u.lang = lang === "ta" ? "ta-IN" : "en-GB";
+    const words = speakable(m.content);
+    const u = new SpeechSynthesisUtterance(words);
+    // The voice follows the reply's language (a Tamil question gets a Tamil answer even in the
+    // English app), counting Tamil letters against English ones.
+    const tamil = (words.match(/[஀-௿]/g) ?? []).length;
+    const latin = (words.match(/[A-Za-z]/g) ?? []).length;
+    u.lang = tamil > latin * 0.3 ? "ta-IN" : "en-GB";
     u.onend = u.onerror = () => setSpeakingId((cur) => (cur === m.id ? null : cur));
     setSpeakingId(m.id);
     window.speechSynthesis.speak(u);

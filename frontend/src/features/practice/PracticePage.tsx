@@ -17,6 +17,7 @@ import {
 import { FeedbackForm } from "./FeedbackForm";
 import { SubjectPicker } from "./SubjectPicker";
 import { topicGlyph } from "./topicIcon";
+import { ask, listen, runningCount, wasAsked } from "./questionQueue";
 import "../../styles/practice.css";
 
 // Clicking a topic starts its quiz: the AI writes 5 new questions on it, one request each (POST
@@ -149,36 +150,41 @@ export function PracticePage() {
 
   // ---------- Question queue ----------
   // The AI writes one question per request, CONCURRENCY at a time across every quiz, oldest quiz
-  // first. A question is never asked for twice while the page is open: a request can end before
-  // React applies its result, and each repeat is a real AI call.
-  const inFlight = useRef(new Set<string>());
-  const requested = useRef(new Set<string>());
+  // first. The queue lives in questionQueue.ts, not in this page, so leaving Practice while a
+  // quiz is being written never wastes a request: it finishes and its question appears here on
+  // return. Each question is asked for at most once per session (every request is a real AI call).
   const [, bump] = useState(0);                              // re-run the queue when a request ends
+  const queueKey = (createdAt: number, slot: number) => `${user.id}:${createdAt}:${slot}`;
+
+  useEffect(() => listen((key, outcome) => {
+    const [owner, created, slotText] = key.split(":");
+    if (Number(owner) !== user.id) return;
+    const id = Number(created);
+    const slot = Number(slotText);
+    bump((n) => n + 1);
+    if (outcome.ok) {
+      setSets((all) => mapSet(all, id, (x) => addQuestion(x, slot, outcome.question)));
+      return;
+    }
+    const err = outcome.error;
+    if (err instanceof ApiError && err.status === 401) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    // Nothing indexed or AI not set up: every other question would fail the same way.
+    const fatal = err instanceof ApiError && (err.code === "no_questions_indexed" || err.code === "tutor_not_configured");
+    setSets((all) => mapSet(all, id, (x) => failSlot(x, fatal ? "all" : slot)));
+    setError(errorText(err));
+  // errorText follows the language; re-subscribing just replaces the listener.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [navigate, user.id, lang]);
 
   useEffect(() => {
     const jobs = Object.values(sets).sort((a, b) => a.createdAt - b.createdAt)
-      .flatMap((s) => s.todo.map((slot) => ({ s, slot, key: `${s.createdAt}:${slot}` })))
-      .filter((j) => !requested.current.has(j.key));
-    for (const { s, slot, key } of jobs.slice(0, Math.max(0, CONCURRENCY - inFlight.current.size))) {
-      const id = s.createdAt;
-      inFlight.current.add(key);
-      requested.current.add(key);
-      tutorApi.quizQuestion(s.lang, slot, s.topic)
-        .then((r) => setSets((all) => mapSet(all, id, (x) => addQuestion(x, slot, r.question))))
-        .catch((err) => {
-          if (err instanceof ApiError && err.status === 401) {
-            navigate("/login", { replace: true });
-            return;
-          }
-          // Nothing indexed or AI not set up: every other question would fail the same way.
-          const fatal = err instanceof ApiError && (err.code === "no_questions_indexed" || err.code === "tutor_not_configured");
-          setSets((all) => mapSet(all, id, (x) => failSlot(x, fatal ? "all" : slot)));
-          setError(errorText(err));
-        })
-        .finally(() => {
-          inFlight.current.delete(key);
-          bump((n) => n + 1);
-        });
+      .flatMap((s) => s.todo.map((slot) => ({ s, slot, key: queueKey(s.createdAt, slot) })))
+      .filter((j) => !wasAsked(j.key));
+    for (const { s, slot, key } of jobs.slice(0, Math.max(0, CONCURRENCY - runningCount()))) {
+      ask(key, () => tutorApi.quizQuestion(s.lang, slot, s.topic).then((r) => r.question));
     }
   });   // every render: cheap, and only starts requests for questions not already asked for
 

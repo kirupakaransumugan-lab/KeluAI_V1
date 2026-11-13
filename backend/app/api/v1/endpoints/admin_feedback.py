@@ -21,9 +21,9 @@ router = APIRouter(prefix="/admin/feedback", tags=["admin"])
 
 
 def get_review_llm():
-    from app.api.v1.endpoints.tutor import _llm
+    from app.api.v1.endpoints.tutor import _admin_llm
 
-    return _llm("feedback_review")
+    return _admin_llm("feedback_review")        # LLM_API_KEY2: admin work only
 
 
 def _open(db: Session, feedback_id: int) -> QuestionFeedback:
@@ -65,7 +65,7 @@ def review(feedback_id: int, db: Session = Depends(get_db), _: User = Depends(ge
     row = _open(db, feedback_id)
     s = get_rag_settings()
     try:
-        feedback.review(db, row, llm, s.quiz_model or s.llm_model, s.ocr_model)
+        feedback.review(db, row, llm, s.admin_quiz_model or s.quiz_model or s.llm_model, s.ocr_model)
     except Exception:
         log.exception("AI review of feedback %s failed", feedback_id)
         db.rollback()

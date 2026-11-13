@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import logging
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Callable
 
@@ -32,7 +33,13 @@ log = logging.getLogger(__name__)
 DAILY_SETS = 1
 WORKERS = 3                     # free models queue extra requests, so more isn't faster
 STALE_AFTER = timedelta(minutes=30)
-STOP_AFTER_FAILURES = 6         # in a row: usually a used-up quota, so stop spending requests
+STOP_AFTER_FAILURES = 3         # in a row: a used-up quota or a broken model chain. Each failure
+                                # can cost 2+ requests (a retry, model fallbacks) on a 50/day free
+                                # quota, so stop early rather than burn the day's requests
+
+
+class _Skipped(Exception):
+    """A topic not attempted because the set was stopped first."""
 
 
 def _clear_stale(db: Session, now: datetime) -> None:
@@ -89,15 +96,24 @@ def run_job(job_id: int, topics: list[Topic], write: Callable[[Topic], QuizQuest
             session_factory: Callable[[], Session]) -> None:
     """Write one draft per topic. Database work stays on this thread; only the AI calls run in
     parallel. Progress is committed after every question, so the page sees it as it happens."""
+    stop = threading.Event()
+
+    def attempt(topic: Topic) -> QuizQuestion:
+        if stop.is_set():                   # checked before spending a request, not after
+            raise _Skipped
+        return write(topic)
+
     with session_factory() as db:
         job = db.get(QuizGenerationJob, job_id)
-        misses = 0
-        stopped = False
+        misses = skipped = 0
         with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-            futures = [pool.submit(write, topic) for topic in topics]
+            futures = [pool.submit(attempt, topic) for topic in topics]
             for future in as_completed(futures):
                 try:
                     question = future.result()
+                except (_Skipped, CancelledError):
+                    skipped += 1            # never asked: not a failure
+                    continue
                 except Exception:
                     log.exception("quiz job %s: a question failed", job_id)
                     question = None
@@ -106,10 +122,10 @@ def run_job(job_id: int, topics: list[Topic], write: Callable[[Topic], QuizQuest
                 job.failed += not saved
                 db.commit()
                 misses = 0 if saved else misses + 1
-                if misses >= STOP_AFTER_FAILURES and not stopped:
-                    stopped = True
+                if misses >= STOP_AFTER_FAILURES and not stop.is_set():
+                    stop.set()
                     for other in futures:
                         other.cancel()
-        job.status = "stopped" if stopped else "finished"
+        job.status = "stopped" if skipped else "finished"
         job.finished_at = utcnow()
         db.commit()

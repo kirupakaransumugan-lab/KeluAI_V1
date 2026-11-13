@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -36,6 +38,32 @@ log = logging.getLogger(__name__)
 # none set (tests, scripts) nothing is recorded. A failing recorder never breaks the AI call.
 UsageRecorder = Callable[[str, str, int, int, "float | None", bool, "str | None"], None]
 _recorder: UsageRecorder | None = None
+
+
+# Free models sometimes answer "successfully" with no text. OpenRouter's fallback list only
+# moves on after an error, so every later call would be spent on the same dead model. A model
+# that answers empty is skipped for EMPTY_SKIP_SECONDS, across all calls in this process, and
+# the call goes straight to the next model in its chain. Free quotas are counted per request.
+EMPTY_SKIP_SECONDS = 3600
+_skip_until: dict[str, float] = {}
+_skip_lock = threading.Lock()
+
+
+def _live(names: list[str]) -> list[str]:
+    """`names` minus models being skipped; all of them if every one is (better than no call)."""
+    now = time.monotonic()
+    with _skip_lock:
+        live = [n for n in names if _skip_until.get(n, 0) <= now]
+    return live or names
+
+
+def _skip(model: str) -> None:
+    with _skip_lock:
+        _skip_until[model] = time.monotonic() + EMPTY_SKIP_SECONDS
+
+
+def _is_empty(resp: "Response") -> bool:
+    return not any(b.type == "tool_use" or b.text.strip() for b in resp.content)
 
 
 def set_usage_recorder(recorder: UsageRecorder | None) -> None:
@@ -84,8 +112,12 @@ class OpenRouterLLM:
     """Satisfies tutor_agent.LLMClient: create(**anthropic_style_kwargs)."""
 
     def __init__(self, api_key: str, base_url: str = OPENROUTER_URL, timeout: float = 120,
-                 temperature: float | None = None, purpose: str = "other"):
+                 temperature: float | None = None, purpose: str = "other",
+                 reasoning_tokens: int = REASONING_HEADROOM):
         self.temperature = temperature
+        # Hidden thinking a reasoning model may do before it writes. Quiz writing keeps the full
+        # 4096; tutor chat uses less, because every thinking token is waiting time for the student.
+        self.reasoning_tokens = reasoning_tokens
         self.purpose = purpose          # what the calls are for, in the admin's AI usage figures
         self._http = httpx.Client(base_url=base_url, timeout=timeout, headers={
             "Authorization": f"Bearer {api_key}",
@@ -104,12 +136,12 @@ class OpenRouterLLM:
         return self._post(model, messages, max_tokens, None)
 
     def _post(self, model: str, msgs: list[dict], max_tokens: int, tools: list[dict] | None) -> Response:
-        names = [m.strip() for m in model.split(",") if m.strip()]
+        names = _live([m.strip() for m in model.split(",") if m.strip()])
         # Reasoning models spend max_tokens on hidden thinking first and can return no text,
         # so cap thinking and add it on top.
         body: dict[str, Any] = {"model": names[0], "messages": msgs,
-                                "max_tokens": max_tokens + REASONING_HEADROOM,
-                                "reasoning": {"max_tokens": REASONING_HEADROOM, "exclude": True}}
+                                "max_tokens": max_tokens + self.reasoning_tokens,
+                                "reasoning": {"max_tokens": self.reasoning_tokens, "exclude": True}}
         if self.temperature is not None:
             body["temperature"] = self.temperature
         if len(names) > 1:
@@ -131,8 +163,16 @@ class OpenRouterLLM:
             raise RuntimeError(f"OpenRouter {r.status_code}: {msg or r.text[:300]}")
         resp = _from_response(data, allow_calls=bool(tools))
         cost = (data.get("usage") or {}).get("cost")
-        _record(self.purpose, data.get("model") or names[0], resp.usage.input_tokens, resp.usage.output_tokens,
-                float(cost) if isinstance(cost, (int, float)) else None, True, None)
+        used = data.get("model") or names[0]
+        empty = _is_empty(resp)
+        _record(self.purpose, used, resp.usage.input_tokens, resp.usage.output_tokens,
+                float(cost) if isinstance(cost, (int, float)) else None, not empty, "empty reply" if empty else None)
+        if empty:
+            _skip(used)
+            rest = [n for n in names if n != used]
+            if rest:
+                log.warning("%s answered empty; skipping it for %ss and trying %s", used, EMPTY_SKIP_SECONDS, rest[0])
+                return self._post(",".join(rest), msgs, max_tokens, tools)
         return resp
 
 

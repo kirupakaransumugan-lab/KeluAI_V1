@@ -49,3 +49,14 @@ def test_logout_clears_session(client):
     client.post(LOGIN, json={"email": "kavin@example.com", "password": "s3cure-pass"})
     assert client.post("/api/v1/auth/logout").status_code == 204
     assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_session_says_who_is_signed_in_without_401(client):
+    resp = client.get("/api/v1/auth/session")
+    assert resp.status_code == 200 and resp.json() == {"user": None}
+    register(client, "kavin@example.com")
+    client.post(LOGIN, json={"email": "kavin@example.com", "password": "s3cure-pass"})
+    user = client.get("/api/v1/auth/session").json()["user"]
+    assert user["email"] == "kavin@example.com" and user["role"] == "student"
+    client.post("/api/v1/auth/logout")
+    assert client.get("/api/v1/auth/session").json() == {"user": None}

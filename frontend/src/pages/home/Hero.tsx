@@ -1,8 +1,10 @@
 import { useLanguage } from "../../app/providers";
+import { homeFor, useSession } from "../../app/session";
 import { ArrowRight, Button } from "../../components/ui/Button";
 
 export function Hero() {
   const { t } = useLanguage();
+  const user = useSession();
 
   return (
     <section className="hero">
@@ -27,8 +29,8 @@ export function Hero() {
         </p>
 
         <div className="hero-ctas">
-          <Button href="/signup" className="btn-lg">
-            {t.ctaPrimary} <ArrowRight />
+          <Button href={user ? homeFor(user) : "/signup"} className="btn-lg">
+            {user ? t.nav.dashboard : t.ctaPrimary} <ArrowRight />
           </Button>
           <a href="#demo" className="demo-link">
             <span className="play" aria-hidden="true">▶</span>

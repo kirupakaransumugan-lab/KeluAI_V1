@@ -86,6 +86,31 @@ def test_openrouter_model_list_becomes_fallbacks():
     assert requests[0]["models"] == ["a/x:free", "b/y:free"]
 
 
+def test_empty_reply_moves_on_and_skips_that_model(monkeypatch):
+    from app.rag.agent import openrouter_llm
+    monkeypatch.setattr(openrouter_llm, "_skip_until", {})
+    empty = {**_msg(""), "model": "a/x:free"}
+    requests: list[dict] = []
+    llm = _llm([empty, {**_msg("56"), "model": "b/y:free"}, {**_msg("again"), "model": "b/y:free"}], requests)
+    ask = dict(max_tokens=10, system="s", messages=[{"role": "user", "content": "7 x 8?"}])
+
+    assert llm.create(model="a/x:free,b/y:free", **ask).content[0].text == "56"
+    assert [r["model"] for r in requests] == ["a/x:free", "b/y:free"]
+
+    # The next call doesn't spend a request on the model that just answered empty.
+    assert llm.create(model="a/x:free,b/y:free", **ask).content[0].text == "again"
+    assert requests[2]["model"] == "b/y:free" and "models" not in requests[2]
+
+
+def test_empty_reply_from_the_last_model_is_returned(monkeypatch):
+    from app.rag.agent import openrouter_llm
+    monkeypatch.setattr(openrouter_llm, "_skip_until", {})
+    requests: list[dict] = []
+    llm = _llm([_msg("")], requests)
+    resp = llm.create(model="only/one", max_tokens=10, system="s", messages=[{"role": "user", "content": "hi"}])
+    assert resp.content == [] and len(requests) == 1      # no endless retry
+
+
 def test_openrouter_error_body_raises():
     requests: list[dict] = []
     llm = _llm([{"error": {"message": "No endpoints found", "code": 404}}], requests)

@@ -112,6 +112,7 @@ FORMAT = r"""How to lay out a reply (rendered as Markdown + LaTeX)
 - A hint (anything short of a full solution) has no Answer or Check: give
   Key idea and at most one step, then end with a bold question such as
   **Your turn:** what is $\dfrac{dy}{dx}$ at $x = 2$?
+  In Tamil write **உங்கள் முறை:** instead of **Your turn:**.
 - Short sentences. Bold only key terms. No horizontal rules, no emoji.
 
 Mathematical notation

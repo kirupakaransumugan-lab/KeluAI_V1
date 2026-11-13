@@ -103,3 +103,25 @@ def normalize_tamil(text: str) -> str:
     text = _SPLIT_OO.sub("\\1\u0BCB", text)
     text = _SPLIT_AU.sub("\\1\u0BCC", text)
     return _SPACE_AFTER_PULLI.sub(PULLI, text)
+
+
+# ---------- Which language did the student write in? ----------
+# The tutor answers in the language of the question, whatever the app is set to. Maths is
+# removed first: "x", "\frac" or "sin" in a Tamil question are not English.
+_MATH = re.compile(r"\$\$.+?\$\$|\$[^$]+\$|\\(.+?\\)|\\[.+?\\]|\[A-Za-z]+", re.S)
+_TAMIL_LETTER = re.compile(r"[஀-௿]")
+_LATIN_WORD = re.compile(r"[A-Za-z]{2,}")      # single letters are usually maths variables
+TAMIL_SHARE = 0.3       # of the letters; Tamil sentences often keep English maths words
+
+
+def question_language(text: str) -> str | None:
+    """'ta' or 'en' from the words of a question, or None when it is only maths
+    (then the caller keeps the language the app is set to)."""
+    words = _MATH.sub(" ", text.replace("\\\\", "\\"))
+    tamil = len(_TAMIL_LETTER.findall(words))
+    latin = sum(len(w) for w in _LATIN_WORD.findall(words))
+    if tamil >= 3 and tamil >= TAMIL_SHARE * (tamil + latin):
+        return "ta"
+    if latin >= 4:
+        return "en"
+    return None

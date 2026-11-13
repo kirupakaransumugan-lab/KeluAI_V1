@@ -103,6 +103,8 @@ export const authApi = {
   resetPassword: (reset_token: string, new_password: string) =>
     request<{ user: User }>("POST", "/auth/password/reset", { reset_token, new_password }),
   me: () => request<User>("GET", "/auth/me"),
+  /** Never 401: `user` is null for a visitor who isn't signed in. */
+  session: () => request<{ user: User | null }>("GET", "/auth/session"),
   logout: () => request<void>("POST", "/auth/logout"),
   updateProfile: (changes: ProfileUpdate) => request<User>("PATCH", "/auth/me", changes),
   changePassword: (current_password: string | null, new_password: string) =>

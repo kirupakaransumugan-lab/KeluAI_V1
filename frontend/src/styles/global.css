@@ -200,10 +200,20 @@ img { max-width: 100%; }
    ===================================================================== */
 /* Illustration box keeps the image's own aspect ratio so decorations placed in % stay aligned. */
 .hero-art {
+  /* The headline grows with the window's width (--u), the art with its height. On tall-ish
+     windows (1440×900, 1680×1050…) that pushed the laptop under "Step by Step.", so the art is
+     capped at the width that keeps it clear of the text:
+     - the laptop screen starts 48% into the art; the headline ends ~47u from the gutter;
+     - the laptop base starts 40% in; the buttons end ~41u from the gutter (43u + 60px leaves clear air).
+     Height follows from the cap (art width ÷ 1.757), and the art stays bottom-right. */
+  --art-max-w: min(
+    calc((100vw - var(--gutter) - var(--u) * 47 - 48px) / 0.52),
+    calc((100vw - var(--gutter) - var(--u) * 43 - 60px) / 0.60)
+  );
   position: absolute;
   right: 0;
   bottom: 0;
-  height: 100%;
+  height: min(100%, calc(var(--art-max-w) / 1.757));
   aspect-ratio: 1662 / 946;
   background: url("/hero-bg.jpg") center / 100% 100% no-repeat;
   filter: var(--art-filter);
@@ -973,6 +983,19 @@ html[lang="ta"] .nav-trial svg { display: none; }
 html[lang="ta"] .nav-auth-switch { font-size: calc(var(--u) * 1); padding: calc(var(--u) * 0.7) calc(var(--u) * 1.3); }
 
 html[lang="ta"] .hero h1 { font-size: calc(var(--u) * 4); line-height: 1.25; }
+/* Tamil lines are longer, so the copy wraps in a narrower column (subtitle and buttons too)
+   and the art gets its own cap from that column's width (see .hero-art). */
+html[lang="ta"] .hero-copy { max-width: calc(var(--u) * 52); }
+html[lang="ta"] .hero-sub { max-width: calc(var(--u) * 44); }
+html[lang="ta"] .hero-sub span { display: inline; }
+html[lang="ta"] .hero-sub span + span::before { content: " "; }
+html[lang="ta"] .hero-ctas { flex-wrap: wrap; max-width: calc(var(--u) * 44); row-gap: calc(var(--u) * 1); }
+html[lang="ta"] .hero-art {
+  --art-max-w: min(
+    calc((100vw - var(--gutter) - var(--u) * 52 - 48px) / 0.52),
+    calc((100vw - var(--gutter) - var(--u) * 46 - 60px) / 0.60)
+  );
+}
 html[lang="ta"] .hero-sub { font-size: calc(var(--u) * 1.5); }
 html[lang="ta"] .hero .btn-lg, html[lang="ta"] .demo-link { font-size: calc(var(--u) * 1.25); }
 html[lang="ta"] .how-title { font-size: clamp(32px, 4.2vw, 54px); line-height: 1.25; }
@@ -982,8 +1005,9 @@ html[lang="ta"] .su-title > span { white-space: normal; }
 /* The longer Tamil subtitle runs under the formula doodle on the auth pages. */
 html[lang="ta"] .su-integral { display: none; }
 
-/* Below this width the Tamil navbar can't fit on one row, so use the menu button. */
-@media (max-width: 1250px) {
+/* Below this width the Tamil navbar can't fit on one row, so use the menu button.
+   (1250px cut the Tamil "Start free trial" button off at 1440px wide.) */
+@media (max-width: 1500px) {
   html[lang="ta"] .nav-links, html[lang="ta"] .nav-login, html[lang="ta"] .nav-trial { display: none; }
   html[lang="ta"] .nav-burger { display: flex; }
 }
@@ -1187,3 +1211,37 @@ html[lang="ta"] .su-integral { display: none; }
   -webkit-mask-image: linear-gradient(#000 70%, transparent);
   mask-image: linear-gradient(#000 70%, transparent);
 }
+
+/* ---------- Signed-in account menu on the landing navbar (layouts/Navbar.tsx) ---------- */
+.nav-account { position: relative; }
+.nav-account-btn {
+  display: inline-flex; align-items: center; gap: calc(var(--u) * 0.5);
+  padding: calc(var(--u) * 0.3) calc(var(--u) * 0.7) calc(var(--u) * 0.3) calc(var(--u) * 0.3);
+  border: 1px solid var(--s-eadfe6); border-radius: 999px; background: var(--s-ffffff);
+  color: var(--ink); font: inherit; font-size: calc(var(--u) * 1.05); font-weight: 600; cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nav-account-btn:hover, .nav-account-btn[aria-expanded="true"] { border-color: var(--plum); box-shadow: 0 4px 14px rgba(140, 29, 107, 0.15); }
+.nav-avatar {
+  display: grid; place-items: center; width: calc(var(--u) * 2.3); height: calc(var(--u) * 2.3); min-width: 30px; min-height: 30px;
+  border-radius: 50%; background: linear-gradient(135deg, #e0428f, var(--plum)); color: #fff; font-weight: 700;
+}
+.nav-account-name { max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-account-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 220px;
+  display: flex; flex-direction: column; padding: 6px; border-radius: 14px;
+  background: var(--s-ffffff); box-shadow: 0 16px 40px rgba(140, 29, 107, 0.18); border: 1px solid var(--s-f3e6ee);
+}
+.nav-account-who { display: flex; flex-direction: column; padding: 8px 12px 10px; border-bottom: 1px solid var(--s-f3e6ee); margin-bottom: 4px; }
+.nav-account-who strong { font-size: 15px; }
+.nav-account-who small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.nav-account-menu a, .nav-account-menu button {
+  display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--ink); font: inherit; font-size: 15px; font-weight: 500; text-align: left; text-decoration: none; cursor: pointer;
+}
+.nav-account-menu a:hover, .nav-account-menu button:hover { background: var(--s-fbeef6); color: var(--plum-ink); }
+/* The mobile menu's log-out is a button: look like the link it replaces. */
+button.nav-menu-login { width: 100%; border: 0; border-top: 1px solid var(--s-f3e6ee); background: transparent; color: inherit; font: inherit; font-size: 16px; text-align: left; cursor: pointer; }
+html[lang="ta"] .nav-account-name { display: none; }
+@media (max-width: 1500px) { html[lang="ta"] .nav-account { display: none; } }
+@media (max-width: 900px) { .nav-account { display: none; } }

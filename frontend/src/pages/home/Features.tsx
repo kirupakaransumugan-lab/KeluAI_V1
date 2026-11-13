@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useLanguage } from "../../app/providers";
+import { homeFor, useSession } from "../../app/session";
 import { ArrowRight } from "../../components/ui/Button";
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -60,6 +61,7 @@ const FEATURE_ART: { img: string; tone: string; icon: ReactNode }[] = [
 /** "Features" on the landing page: the feature cards. */
 export function Features() {
   const { t } = useLanguage();
+  const user = useSession();
   const f = t.features;
 
   return (
@@ -97,7 +99,7 @@ export function Features() {
               <div className="feat-art">
                 <img src={art.img} alt={item.imageAlt} loading="lazy" />
               </div>
-              <a href="/signup" className="feat-more" aria-label={`${f.learnMore}: ${item.title}`}>
+              <a href={user ? homeFor(user) : "/signup"} className="feat-more" aria-label={`${f.learnMore}: ${item.title}`}>
                 <ArrowRight />
               </a>
             </li>

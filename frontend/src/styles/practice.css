@@ -322,17 +322,85 @@ fieldset.pr-step { margin: 0; min-width: 0; padding: 14px 18px 16px; }
 .pr-pick-subject { display: flex; flex-direction: column; gap: 14px; }
 .pr-choose-title { margin: 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 23px; font-weight: 700; }
 .pr-subjects h3 { margin: 0 0 8px; color: var(--plum-ink); font-size: 15px; font-weight: 700; }
-.pr-subject-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.pr-subject {
-  display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 12px; text-align: left;
-  border: 1px solid var(--s-f3e6ec); border-radius: 16px; background: var(--s-ffffffe6); color: var(--ink);
+/* Topic tiles. Pure topics are plum, Applied teal; the bar under a tried topic shows its score
+   band (low < 40 <= mid < 75 <= good), always next to the written "Your score" so colour is
+   never the only signal. */
+.pr-subject-list {
+  --pr-pure: #a3236f; --pr-pure-soft: #fbe6f0; --pr-pure-deep: #7a1553;
+  --pr-applied: #0f7b8a; --pr-applied-soft: #dff2f4; --pr-applied-deep: #0a5d69;
+  --pr-low: #e0566a; --pr-mid: #e8a33a; --pr-good: #3fa865; --pr-track: #f4e9ee;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
 }
-.pr-subject:hover { border-color: var(--s-ecc4d8); background: var(--s-ffffff); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pr-subject-list {
+    --pr-pure: #f19ad3; --pr-pure-soft: #3d1f33; --pr-pure-deep: #c24b95;
+    --pr-applied: #6fd2de; --pr-applied-soft: #133338; --pr-applied-deep: #1f8f9e;
+    --pr-low: #ff8a95; --pr-mid: #f2b54a; --pr-good: #5fd08a; --pr-track: #2c2129;
+  }
+}
+:root[data-theme="dark"] .pr-subject-list {
+  --pr-pure: #f19ad3; --pr-pure-soft: #3d1f33; --pr-pure-deep: #c24b95;
+  --pr-applied: #6fd2de; --pr-applied-soft: #133338; --pr-applied-deep: #1f8f9e;
+  --pr-low: #ff8a95; --pr-mid: #f2b54a; --pr-good: #5fd08a; --pr-track: #2c2129;
+}
+.pr-subject {
+  --pr-accent: var(--pr-pure); --pr-soft: var(--pr-pure-soft); --pr-deep: var(--pr-pure-deep);
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px;
+  min-height: 72px; padding: 12px 14px; text-align: left; cursor: pointer;
+  border: 1px solid var(--s-f3e6ec); border-radius: 18px; background: var(--s-ffffffe6); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(26, 11, 46, 0.03);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.pr-subject.applied { --pr-accent: var(--pr-applied); --pr-soft: var(--pr-applied-soft); --pr-deep: var(--pr-applied-deep); }
+/* A soft wash of the strand colour slides in from the left on hover. */
+.pr-subject::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(100deg, var(--pr-soft) 0%, transparent 65%);
+  opacity: 0; transform: translateX(-12%); transition: opacity 0.22s ease, transform 0.3s ease;
+}
+.pr-subject > * { position: relative; z-index: 1; }
+.pr-subject:hover, .pr-subject:focus-visible {
+  transform: translateY(-3px); border-color: var(--pr-accent); background: var(--s-ffffff);
+  box-shadow: 0 10px 24px -8px rgba(26, 11, 46, 0.18), 0 0 0 1px var(--pr-accent);
+}
+.pr-subject:hover::before, .pr-subject:focus-visible::before { opacity: 1; transform: none; }
+.pr-subject:active { transform: translateY(-1px) scale(0.99); }
 .pr-subject:focus-visible { outline: 3px solid rgba(140, 29, 107, 0.35); outline-offset: 2px; }
-.pr-subject > svg { flex: none; color: var(--muted); }
+
+.pr-subject .pr-glyph {
+  min-width: 48px; height: 48px; padding: 0 8px; border-radius: 14px;
+  background: var(--pr-soft); color: var(--pr-accent); font-size: 19px; letter-spacing: -0.02em; white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pr-subject:hover .pr-glyph, .pr-subject:focus-visible .pr-glyph {
+  background: linear-gradient(135deg, var(--pr-accent), var(--pr-deep)); color: #fff; transform: rotate(-6deg) scale(1.06);
+}
 .pr-subject-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pr-subject-copy strong { font-size: 15.5px; font-weight: 600; }
+.pr-subject-copy strong { font-size: 15.5px; font-weight: 600; line-height: 1.25; }
 .pr-subject-copy small { color: var(--muted); font-size: 13px; }
+.pr-subject.new .pr-subject-copy small:first-of-type {
+  align-self: flex-start; margin-top: 3px; padding: 1px 9px; border-radius: 999px;
+  background: var(--pr-soft); color: var(--pr-accent); font-size: 12px; font-weight: 600;
+}
+
+.pr-subject-go {
+  display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; color: var(--muted);
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.pr-subject-go svg { width: 18px; height: 18px; }
+.pr-subject:hover .pr-subject-go, .pr-subject:focus-visible .pr-subject-go { background: var(--pr-accent); color: #fff; transform: translateX(3px); }
+
+/* Score bar along the bottom edge of a tried topic. */
+.pr-subject-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--pr-track); }
+.pr-subject-bar > span { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--pr-good); transition: width 0.5s ease; }
+.pr-subject.low .pr-subject-bar > span { background: var(--pr-low); }
+.pr-subject.mid .pr-subject-bar > span { background: var(--pr-mid); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-subject, .pr-subject::before, .pr-subject .pr-glyph, .pr-subject-go { transition: none; }
+  .pr-subject:hover, .pr-subject:focus-visible, .pr-subject:active { transform: none; }
+  .pr-subject:hover .pr-glyph, .pr-subject:focus-visible .pr-glyph { transform: none; }
+}
 
 /* ---------- Feedback on a finished question ---------- */
 .pr-fb-open { margin-top: 10px; font-size: 14.5px; }

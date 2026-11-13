@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -157,6 +157,20 @@ def reset_password(data: ResetPasswordRequest, response: Response, db: Session =
     # Fresh session for this browser; every older session is now rejected.
     _set_session_cookie(response, user)
     return AuthResponse(user=auth_service.to_user_out(user))
+
+
+@router.get("/session")
+def session(db: Session = Depends(get_db),
+            token: str | None = Cookie(default=None, alias=ACCESS_COOKIE)) -> dict:
+    """Who is signed in, for public pages (the landing page's top bar and buttons).
+
+    Unlike /me this never answers 401: a visitor who isn't signed in is normal there, not an
+    error. Any reason /me would refuse (no cookie, expired, switched off) means "not signed in"."""
+    try:
+        user = get_current_user(db=db, token=token)
+    except HTTPException:
+        return {"user": None}
+    return {"user": auth_service.to_user_out(user).model_dump(mode="json")}
 
 
 @router.get("/me", response_model=UserOut)

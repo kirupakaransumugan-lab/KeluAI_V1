@@ -1,5 +1,7 @@
-import { useEffect, useState, type MouseEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { homeFor, signOut, useSession } from "../app/session";
+import type { User } from "../services/api";
 import { useLanguage } from "../app/providers";
 import { ArrowRight, Button } from "../components/ui/Button";
 import { Logo } from "../components/ui/Logo";
@@ -23,10 +25,44 @@ function useSectionInView(ids: string[]): string | null {
   return current;
 }
 
+/** Signed in: avatar and first name, with a menu to the dashboard and to log out. */
+function AccountMenu({ user }: { user: User }) {
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: globalThis.MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", key); };
+  }, [open]);
+  const first = user.full_name.trim().split(/\s+/)[0] ?? "";
+  return (
+    <div className="nav-account" ref={ref}>
+      <button type="button" className="nav-account-btn" aria-label={t.nav.account} aria-haspopup="menu"
+        aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="nav-avatar" aria-hidden="true">{first.charAt(0).toUpperCase() || "?"}</span>
+        <span className="nav-account-name">{first}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="nav-account-menu" role="menu">
+          <div className="nav-account-who"><strong>{user.full_name}</strong><small>{user.email}</small></div>
+          <Link role="menuitem" to={homeFor(user)} onClick={() => setOpen(false)}>{t.nav.dashboard}</Link>
+          <button role="menuitem" type="button" onClick={() => { setOpen(false); void signOut(); }}>{t.nav.logout}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Navbar() {
   const { lang, setLang, t } = useLanguage();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const user = useSession(true);          // checks the server once when the page opens
   // On the auth pages the navbar offers just one outlined button: the *other* auth page.
   const authSwitch =
     pathname === "/login" ? { href: "/signup", label: t.nav.signup } :
@@ -105,7 +141,14 @@ export function Navbar() {
             English
           </button>
         </div>
-        {authSwitch ? (
+        {user ? (
+          <>
+            <Button href={homeFor(user)} className="nav-trial">
+              {t.nav.dashboard} <ArrowRight />
+            </Button>
+            <AccountMenu user={user} />
+          </>
+        ) : authSwitch ? (
           <a href={authSwitch.href} className="nav-auth-switch">{authSwitch.label}</a>
         ) : (
           <>
@@ -133,12 +176,25 @@ export function Navbar() {
 
       <div id="mobile-menu" className="nav-menu" hidden={!menuOpen}>
         <nav aria-label={t.nav.mobileNav}>{linkItems}</nav>
-        <a href="/login" className="nav-menu-login" onClick={() => setMenuOpen(false)}>
-          {t.nav.login}
-        </a>
-        <Button href="/signup" className="nav-menu-trial">
-          {t.nav.trial} <ArrowRight />
-        </Button>
+        {user ? (
+          <>
+            <button type="button" className="nav-menu-login" onClick={() => { setMenuOpen(false); void signOut(); }}>
+              {t.nav.logout}
+            </button>
+            <Button href={homeFor(user)} className="nav-menu-trial">
+              {t.nav.dashboard} <ArrowRight />
+            </Button>
+          </>
+        ) : (
+          <>
+            <a href="/login" className="nav-menu-login" onClick={() => setMenuOpen(false)}>
+              {t.nav.login}
+            </a>
+            <Button href="/signup" className="nav-menu-trial">
+              {t.nav.trial} <ArrowRight />
+            </Button>
+          </>
+        )}
       </div>
     </header>
   );

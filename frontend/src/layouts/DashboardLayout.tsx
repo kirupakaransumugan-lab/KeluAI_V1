@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
 import { WelcomeModal, takeWelcome } from "../features/onboarding/WelcomeModal";
+import { useNavTips, type TipKey } from "../features/onboarding/NavTips";
 import { useLanguage } from "../app/providers";
+import { setSession } from "../app/session";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { icons } from "../features/dashboard/icons";
 import { ApiError, authApi, type User } from "../services/api";
@@ -38,11 +40,13 @@ export function DashboardLayout() {
   const [user, setUser] = useState<User>();
   const [welcome, setWelcome] = useState(false);         // the after-login welcome card
   const [menuOpen, setMenuOpen] = useState(false);       // mobile sidebar
+  const tips = useNavTips();                             // hover cards on the sidebar links
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     authApi.me().then((u) => {
+      setSession(u);                     // so the landing page shows this account at once
       // Admins have no student profile; their home is the admin area.
       if (u.role === "admin") navigate("/admin", { replace: true });
       else {
@@ -74,6 +78,7 @@ export function DashboardLayout() {
   const logout = async () => {
     try {
       await authApi.logout();
+      setSession(null);
     } finally {
       navigate("/login", { replace: true });
     }
@@ -83,13 +88,17 @@ export function DashboardLayout() {
     return <div className="db-loading" role="status">{d.loading}</div>;
   }
 
-  const link = (to: string, label: string, icon: ReactNode) => (
-    <NavLink key={to} to={to} end={to === "/dashboard"} onClick={() => setMenuOpen(false)}
+  const link = (to: string, key: TipKey, label: string, icon: ReactNode) => {
+    const tip = tips.bind(key, label, icon);
+    return (
+    <NavLink key={to} to={to} end={to === "/dashboard"} {...tip}
+      onClick={() => { tip.onClick(); setMenuOpen(false); }}
       className={({ isActive }) => `db-nav-link${isActive ? " active" : ""}`}>
       <span className="db-nav-icon">{icon}</span>
       {label}
     </NavLink>
-  );
+    );
+  };
 
   return (
     <div className={`db-shell${autoHide ? " db-autohide" : ""}${menuOpen ? " menu-open" : ""}`}>
@@ -100,19 +109,20 @@ export function DashboardLayout() {
             aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
             {icons.menu}
           </button>
-          <Link to="/dashboard" className="db-logo">
+          <Link to="/" className="db-logo">
             <img src="/kelu-logo.png" alt="KELU – AI Math Tutor" />
           </Link>
         </div>
         <nav className="db-nav">
-          {NAV.map((n) => link(n.to, d.nav[n.key], n.icon))}
+          {NAV.map((n) => link(n.to, n.key, d.nav[n.key], n.icon))}
           <hr className="db-nav-rule" />
-          {ACCOUNT_NAV.map((n) => link(n.to, d.nav[n.key], n.icon))}
+          {ACCOUNT_NAV.map((n) => link(n.to, n.key, d.nav[n.key], n.icon))}
         </nav>
         <Link to="/dashboard/tutor" className="db-partner">
           <img src="/dashboard/partner.png" alt={d.partner} />
         </Link>
       </aside>
+      {tips.card}
       {menuOpen && <div className="db-scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
 
       <div className="db-main">

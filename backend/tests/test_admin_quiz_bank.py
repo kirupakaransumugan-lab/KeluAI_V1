@@ -1,4 +1,5 @@
 """Admin question review: AI drafts never reach students until a person publishes them."""
+import time
 from collections import Counter
 from datetime import timedelta
 
@@ -196,9 +197,15 @@ def test_run_job_stops_when_everything_keeps_failing(client):
     db = _db()
     job_id = _start(db, 10)
 
+    asked = []
+
     def write(topic):
+        asked.append(topic)
+        time.sleep(0.1)                     # a real AI call takes seconds, not microseconds
         raise QuizIncomplete("quota")
 
     quiz_jobs.run_job(job_id, list(TOPICS[:10]), write, _db)
     job = _db().get(QuizGenerationJob, job_id)
     assert job.status == "stopped" and job.failed >= quiz_jobs.STOP_AFTER_FAILURES
+    assert len(asked) < 10                  # the rest of the set never spent a request
+    assert job.failed == len(asked)         # topics never asked aren't counted as failures

@@ -48,6 +48,10 @@ WRONG_PER_STEP = 3
 # first, so short outputs (1 question) are the ones that come back whole.
 BATCH_SIZE = 1
 BATCH_MAX_TOKENS = 8000
+# A written question (3 steps x 4 options, reasons, answer) is ~800-1,100 tokens of text. The
+# request is capped at this much per question: room to finish, but a model that rambles (two
+# calls on 13 Nov ran to the full 8,000 + thinking and came back unusable) stops early.
+QUESTION_MAX_TOKENS = 2500
 RETRY_ROUNDS = 1        # re-ask, once, for slots that came back without 3 usable steps
 TOPIC_EXAMPLES = 8      # semantic matches for an untagged topic; one is picked at random as the style guide
 # A subject quiz climbs from easiest to hardest: LEVELS[n - 1] is question n.
@@ -464,7 +468,7 @@ class QuizGenerator:
             prompt += (f"\nThe question must test this topic: {topic}. Copy only the style of the example, "
                        "which may be on a different topic or difficulty.")
         model = self.tamil_model if language == "ta" else self.model
-        resp = self.llm.create(model=model, max_tokens=self.max_tokens, system=system,
+        resp = self.llm.create(model=model, max_tokens=min(self.max_tokens, QUESTION_MAX_TOKENS * n), system=system,
                                messages=[{"role": "user", "content": prompt}])
         usage = getattr(resp, "usage", None)
         tokens = ((getattr(usage, "input_tokens", 0) or 0) + (getattr(usage, "output_tokens", 0) or 0)

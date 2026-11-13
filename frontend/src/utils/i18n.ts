@@ -3,6 +3,8 @@ export type Lang = "en" | "ta";
 export interface Copy {
   nav: {
     home: string; howItWorks: string; features: string; pricing: string; faq: string; login: string; trial: string; signup: string;
+    // Signed in: the account menu and "Go to dashboard" replace Log in / Start free trial
+    dashboard: string; myPlan: string; logout: string; account: string;
     // Screen-reader labels
     primaryNav: string; mobileNav: string; language: string; menu: string; darkMode: string; lightMode: string;
   };
@@ -40,6 +42,13 @@ export interface DashboardCopy {
     saved: string; subscription: string; settings: string; logout: string;
     // Screen-reader labels
     sidebar: string; openMenu: string; search: string; notifications: string; account: string;
+  };
+  /** Hover cards on the sidebar links (features/onboarding/NavTips.tsx): a short video, or
+   *  these three steps until the video exists. */
+  tips: {
+    label: string;
+    items: Record<"home" | "practice" | "tutor" | "pastPapers" | "progress" | "subscription" | "settings",
+      { text: string; steps: [string, string, string] }>;
   };
   greeting: { morning: string; afternoon: string; evening: string };
   medium: { ta: string; en: string };
@@ -588,6 +597,10 @@ const en: Copy = {
     faq: "FAQ",
     login: "Log in",
     trial: "Start free trial",
+    dashboard: "Go to dashboard",
+    myPlan: "View my plan",
+    logout: "Log out",
+    account: "Account menu",
     signup: "Sign up",
     primaryNav: "Primary",
     mobileNav: "Mobile",
@@ -885,6 +898,25 @@ const en: Copy = {
       home: "Home", practice: "Practice", tutor: "AI Tutor", pastPapers: "Past Papers", progress: "Progress",
       saved: "Saved Questions", subscription: "Subscription", settings: "Settings", logout: "Log out",
       sidebar: "Dashboard", openMenu: "Open menu", search: "Search", notifications: "Notifications", account: "Account menu",
+    },
+    tips: {
+      label: "How it works",
+      items: {
+        home: { text: "Your day at a glance: plan, streak and what to do next.",
+          steps: ["Check today's study plan", "Keep your streak going", "Pick up where you stopped"] },
+        practice: { text: "Pick a topic and solve 5 questions, step by step.",
+          steps: ["Click any topic", "Choose the right step from 4 options", "See your marks and the reasons"] },
+        tutor: { text: "Ask any Combined Maths question and get hints, not just answers.",
+          steps: ["Type or photograph your question", "Get a hint first, then the next one", "Answers cite real past papers"] },
+        pastPapers: { text: "Read real A/L past papers and marking schemes.",
+          steps: ["Choose a year", "Open Paper I or Paper II", "Jump straight to any question"] },
+        progress: { text: "See which topics are strong and which need work.",
+          steps: ["Your mastery and accuracy", "Scores for every topic", "Your week, day by day"] },
+        subscription: { text: "Your plan, days left and plan history.",
+          steps: ["See your current plan", "Check how many days are left", "Compare the plans"] },
+        settings: { text: "Update your profile, password and account.",
+          steps: ["Edit your name and mobile", "Change your password", "Manage your account"] },
+      },
     },
     greeting: { morning: "Good morning, {name}", afternoon: "Good afternoon, {name}", evening: "Good evening, {name}" },
     medium: { ta: "Tamil medium", en: "English medium" },
@@ -1299,6 +1331,10 @@ const ta: Copy = {
     faq: "கேள்வி-பதில்",
     login: "உள்நுழை",
     trial: "இலவசமாகத் தொடங்கு",
+    dashboard: "கட்டுப்பாட்டுப் பலகைக்குச் செல்",
+    myPlan: "என் திட்டத்தைப் பார்",
+    logout: "வெளியேறு",
+    account: "கணக்குப் பட்டியல்",
     signup: "பதிவு செய்",
     primaryNav: "முதன்மை",
     mobileNav: "கைபேசி",
@@ -1596,6 +1632,25 @@ const ta: Copy = {
       home: "முகப்பு", practice: "பயிற்சி", tutor: "AI ஆசிரியர்", pastPapers: "கடந்தகால வினாத்தாள்கள்", progress: "முன்னேற்றம்",
       saved: "சேமித்த வினாக்கள்", subscription: "சந்தா", settings: "அமைப்புகள்", logout: "வெளியேறு",
       sidebar: "கட்டுப்பாட்டுப் பலகை", openMenu: "பட்டியலைத் திற", search: "தேடு", notifications: "அறிவிப்புகள்", account: "கணக்குப் பட்டியல்",
+    },
+    tips: {
+      label: "இது எப்படி வேலை செய்கிறது",
+      items: {
+        home: { text: "இன்றைய திட்டம், தொடர் நாட்கள், அடுத்து செய்ய வேண்டியது — எல்லாம் ஒரே பார்வையில்.",
+          steps: ["இன்றைய படிப்புத் திட்டத்தைப் பாருங்கள்", "தொடர் நாட்களைத் தவறவிடாதீர்கள்", "நிறுத்திய இடத்திலிருந்து தொடருங்கள்"] },
+        practice: { text: "ஒரு பாடத்தைத் தெரிவுசெய்து, 5 வினாக்களைப் படிப்படியாகத் தீருங்கள்.",
+          steps: ["ஏதாவது ஒரு பாடத்தை அழுத்துங்கள்", "4 தெரிவுகளில் சரியான படியைத் தேர்ந்தெடுங்கள்", "புள்ளிகளையும் காரணங்களையும் பாருங்கள்"] },
+        tutor: { text: "இணைந்த கணித வினா எதையும் கேளுங்கள் — நேரடி விடையல்ல, முதலில் குறிப்புகள்.",
+          steps: ["வினாவைத் தட்டச்சு செய்யுங்கள் அல்லது படம் எடுங்கள்", "முதலில் ஒரு குறிப்பு, பிறகு அடுத்தது", "விடைகள் உண்மையான வினாத்தாள்களைச் சுட்டுகின்றன"] },
+        pastPapers: { text: "உண்மையான A/L கடந்தகால வினாத்தாள்களையும் புள்ளித் திட்டங்களையும் படியுங்கள்.",
+          steps: ["ஒரு ஆண்டைத் தெரிவுசெய்யுங்கள்", "வினாத்தாள் I அல்லது II ஐத் திறவுங்கள்", "எந்த வினாவுக்கும் நேரடியாகச் செல்லுங்கள்"] },
+        progress: { text: "எந்தப் பாடங்களில் வலிமை, எவற்றில் இன்னும் பயிற்சி தேவை என்று பாருங்கள்.",
+          steps: ["உங்கள் தேர்ச்சியும் துல்லியமும்", "ஒவ்வொரு பாடத்துக்குமான புள்ளிகள்", "நாள்வாரியாக உங்கள் வாரம்"] },
+        subscription: { text: "உங்கள் திட்டம், மீதமுள்ள நாட்கள், திட்ட வரலாறு.",
+          steps: ["தற்போதைய திட்டத்தைப் பாருங்கள்", "எத்தனை நாட்கள் மீதம் என்று பாருங்கள்", "திட்டங்களை ஒப்பிடுங்கள்"] },
+        settings: { text: "உங்கள் சுயவிவரம், கடவுச்சொல், கணக்கை மாற்றுங்கள்.",
+          steps: ["பெயரையும் கைபேசி எண்ணையும் மாற்றுங்கள்", "கடவுச்சொல்லை மாற்றுங்கள்", "கணக்கை நிர்வகியுங்கள்"] },
+      },
     },
     greeting: { morning: "காலை வணக்கம், {name}", afternoon: "மதிய வணக்கம், {name}", evening: "மாலை வணக்கம், {name}" },
     medium: { ta: "தமிழ் மொழிமூலம்", en: "ஆங்கில மொழிமூலம்" },

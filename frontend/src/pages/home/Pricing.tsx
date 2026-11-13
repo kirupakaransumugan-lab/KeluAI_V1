@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLanguage } from "../../app/providers";
+import { homeFor, useSession } from "../../app/session";
 import { ArrowRight } from "../../components/ui/Button";
 import { plansApi, type PublicPlan } from "../../services/api";
 import type { PlanCopy } from "../../utils/i18n";
@@ -76,6 +77,12 @@ interface PlanCardProps {
 }
 
 function PlanCard({ plan, name, tagline, icon, price, variant, ribbon, note }: PlanCardProps) {
+  const { t } = useLanguage();
+  const user = useSession();
+  // Signed in: a student sees their own plan; an admin goes to the admin area.
+  const cta = !user ? { href: "/signup", label: plan.cta }
+    : user.role === "admin" ? { href: homeFor(user), label: t.nav.dashboard }
+    : { href: "/dashboard/subscription", label: t.nav.myPlan };
   return (
     <li className={`plan plan-${variant}`}>
       {ribbon && <span className="plan-ribbon">{ICONS.crown} {ribbon}</span>}
@@ -95,8 +102,8 @@ function PlanCard({ plan, name, tagline, icon, price, variant, ribbon, note }: P
           <li key={perk}><Check />{perk}</li>
         ))}
       </ul>
-      <a href="/signup" className="plan-cta">
-        {plan.cta} <ArrowRight />
+      <a href={cta.href} className="plan-cta">
+        {cta.label} <ArrowRight />
       </a>
       {note && <small className="plan-note">{note}</small>}
     </li>

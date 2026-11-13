@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { icons } from "../features/dashboard/icons";
 import { ApiError, authApi, type User } from "../services/api";
+import { setSession } from "../app/session";
 import "../styles/dashboard.css";
 import "../styles/admin.css";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -37,6 +38,7 @@ export function AdminLayout() {
 
   useEffect(() => {
     authApi.me().then((u) => {
+      setSession(u);
       if (u.role !== "admin") navigate("/dashboard", { replace: true });
       else setUser(u);
     }, (err) => {
@@ -61,6 +63,7 @@ export function AdminLayout() {
   const logout = async () => {
     try {
       await authApi.logout();
+      setSession(null);
     } finally {
       navigate("/login", { replace: true });
     }

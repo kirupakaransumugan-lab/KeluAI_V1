@@ -136,8 +136,18 @@ function withDelimiters(text: string): string {
   return text.replace(BARE_ENV, (env) => `$$${env}$$`);
 }
 
+// Text copied from a JSON file, a chat app or some editors arrives "escaped twice":
+// "\\(x\\)" instead of "\(x\)". Then the maths can't be found and KaTeX shows it in red.
+// Only when the text uses doubled delimiters and no normal ones, halve every "\\".
+const DOUBLED = /\\\\[([]/;
+const SINGLE = /(^|[^\\])\\[([]/;
+
+export function unescapeDoubled(text: string): string {
+  return DOUBLED.test(text) && !SINGLE.test(text) ? text.replace(/\\\\/g, "\\") : text;
+}
+
 export function MathText({ text, className }: { text: string; className?: string }) {
-  const nodes = useMemo(() => layout(withDelimiters(text)), [text]);
+  const nodes = useMemo(() => layout(withDelimiters(unescapeDoubled(text))), [text]);
   return <div className={`mt-text${className ? ` ${className}` : ""}`}>{nodes}</div>;
 }
 

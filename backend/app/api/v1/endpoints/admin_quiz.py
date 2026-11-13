@@ -31,10 +31,10 @@ class GenerateRequest(BaseModel):
 def run_generation(job_id: int, topics: list[Topic], lang: str) -> None:
     """Runs after the response has gone back. Building the generator loads the embedding model
     and needs the AI key, so it happens here, not during the admin's request."""
-    from app.api.v1.endpoints.tutor import get_quiz_generator
+    from app.api.v1.endpoints.tutor import get_admin_quiz_generator
 
     try:
-        generator = get_quiz_generator()
+        generator = get_admin_quiz_generator()      # LLM_API_KEY2: admin work only
     except Exception:
         log.exception("quiz job %s: the AI could not be set up", job_id)
         quiz_jobs.fail_job(job_id, SessionLocal)

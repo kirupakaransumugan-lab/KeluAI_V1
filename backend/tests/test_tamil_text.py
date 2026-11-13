@@ -39,3 +39,30 @@ def test_english_and_maths_are_untouched():
 def test_already_correct_tamil_is_unchanged():
     good = "கணிதத் தொகுத்தறிவுக் கோட்பாட்டைப் பயன்படுத்தி நிறுவுக"
     assert normalize_tamil(good) == good
+
+
+# ---------- question_language: answer in the language the student wrote in ----------
+from app.rag.tamil_text import question_language
+
+
+def test_a_tamil_question_with_maths_is_tamil():
+    q = (r"\(y = 3 - |x|\quad y = |x - 1|\) ஆகிய சார்புகளின் வரைபுகளை ஒரே வரிப்படத்தில் பொருத்தமாக வரைக. "
+         r"இதிலிருந்து சமனிலி \(|x| + |x - 1| \leq 3\) ஐத் திருப்திப்படுத்தும் \(x\) இன் எல்லா மெய் பெறுமானங்களையும் காண்க.")
+    assert question_language(q) == "ta"
+
+
+def test_doubled_backslashes_are_still_maths():
+    assert question_language(r"\(x^2\) இன் பெறுமானத்தைக் காண்க") == "ta"
+
+
+def test_an_english_question_is_english():
+    assert question_language(r"Find the real values of \(x\) for which \(|x| + |x-1| \leq 3\).") == "en"
+
+
+def test_tamil_with_english_maths_words_stays_tamil():
+    assert question_language("sin x + cos x = 1 எனின், tan x இன் பெறுமானம் யாது?") == "ta"
+
+
+def test_only_maths_keeps_the_app_language():
+    assert question_language(r"\(\int_0^1 x^2\,dx\)") is None
+    assert question_language("2x + 3 = 7") is None
