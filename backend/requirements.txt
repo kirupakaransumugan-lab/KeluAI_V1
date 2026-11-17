@@ -3,18 +3,13 @@
 #
 #   python -m venv .venv
 #   .venv\Scripts\activate            (Windows)   |   source .venv/bin/activate   (macOS/Linux)
-#   pip install -r requirements.txt     (dev: server packages + local BGE-M3 + tests)
+#   pip install -r requirements.txt     (dev: server packages + BGE-M3 + tests)
 #
 # Only direct dependencies are listed; pip resolves their sub-dependencies.
 
 -r requirements-server.txt
 
-# ---- Local embeddings (EMBEDDING_PROVIDER=bge-m3): dev only, not on the server ----
-sentence-transformers==6.2.0
-transformers==5.22.1
-# CPU build. The default Windows wheel from PyPI is CPU-only; on Linux, pip pulls the
-# much larger CUDA build unless you add: --index-url https://download.pytorch.org/whl/cpu
-torch==2.15.0
+-r requirements-embeddings.txt
 
 # ---- Tests ----
 pytest==9.1.1

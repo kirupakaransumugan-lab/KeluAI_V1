@@ -4,10 +4,9 @@ Everything runs on AWS (Sydney), paid from the free plan's credit:
 
 ```
  Browser ──HTTPS──▶ EC2 server: Caddy ─┬─ /          React site (built into the Caddy image)
-                                       └─ /api/*  ─▶ backend (FastAPI) ─▶ MySQL 8, Qdrant  (all in Docker)
-                                                   │
+                                       └─ /api/*  ─▶ backend (FastAPI + e5-small embeddings) ─▶ MySQL 8, Qdrant
+                                                   │                                      (all in Docker)
                                                    ├─▶ S3  kelu-files-v1   uploads, OCR pages, photos, DB backups
-                                                   ├─▶ Bedrock             embeddings (Tamil + English)
                                                    ├─▶ OpenRouter          tutor / quiz / OCR models
                                                    └─▶ Brevo SMTP          email
 ```
@@ -41,6 +40,9 @@ IAM → Policies → Create policy → JSON, name `kelu-backend`:
 }
 ```
 
+The Bedrock line is unused for now (Bedrock is blocked on the AWS free plan, so embeddings run on
+the server with multilingual-e5-small); it lets you switch to `EMBEDDING_PROVIDER=bedrock` after upgrading.
+
 IAM → Users → `kelu-backend` (no console access) → attach the policy → Security credentials →
 Create access key → "Application running outside AWS". Keep the two keys for step 4.
 
@@ -51,9 +53,7 @@ cd backend
 .venv\Scripts\python -m app.manage check-aws
 ```
 
-If Bedrock says `AccessDeniedException` for the Cohere model, open **Bedrock → Model catalog →
-Cohere Embed Multilingual** in Sydney and request access, or switch to Amazon's own model with
-`BEDROCK_EMBEDDING_MODEL=amazon.titan-embed-text-v2:0`.
+`S3 OK` is what matters. `Bedrock FAIL ... Operation not allowed` is expected on the free plan.
 
 ## 2. AWS: the server
 
@@ -61,8 +61,8 @@ EC2 → Launch instance (Sydney):
 
 | Setting | Value |
 |---|---|
-| Image | Ubuntu Server 24.04 LTS, **64-bit (Arm)** |
-| Type | `t4g.small` (2 GB RAM) |
+| Image | Ubuntu Server 26.04 LTS, **64-bit (Arm)**: switch the architecture first, it resets the form |
+| Type | `t4g.small` (2 GB RAM; the free plan offers only micro/small) |
 | Key pair | create one, keep the `.pem` file safe |
 | Storage | 30 GB gp3 |
 | Security group | SSH 22 from **My IP** only; HTTP 80 and HTTPS 443 from anywhere |
@@ -78,7 +78,7 @@ On the server (`ssh -i key.pem ubuntu@<elastic-ip>`):
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker ubuntu && newgrp docker
 
-# 2 GB swap: headroom for MySQL + Qdrant + backend on a 2 GB machine
+# 2 GB swap: a safety net if the model, MySQL and Qdrant peak at the same time
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
@@ -89,7 +89,12 @@ chmod 600 infra/.env.prod
 
 docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d --build
 curl https://<site-host>/health                 # {"status":"ok"}; the site is https://<site-host>
+
+# Download the embedding model once (~470 MB), so the first student doesn't wait for it
+docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml exec backend python -c "from app.rag.config import get_rag_settings as g; from app.rag.embeddings import build_embedder as b; s = g(); b(s.embedding_provider, s.embedding_dim); print('model ready:', s.embedding_provider)"
 ```
+
+The first build takes 10–15 minutes (PyTorch is large); later builds reuse the cached layers.
 
 ## 3. Google sign-in for the new address
 
@@ -117,12 +122,11 @@ JWT_SECRET=at_least_32_random_characters
 # Qdrant (runs in Docker)
 VECTOR_DB_API_KEY=choose_a_long_random_key
 
-# AWS (S3 + Bedrock)
+# AWS (S3)
 S3_BUCKET=kelu-files-v1
 S3_REGION=ap-southeast-2
 AWS_ACCESS_KEY_ID=your_access_key_id_here
 AWS_SECRET_ACCESS_KEY=your_secret_access_key_here
-BEDROCK_EMBEDDING_MODEL=cohere.embed-multilingual-v3
 
 # AI, sign-in, email, payments: same names as backend/.env
 LLM_API_KEY=your_openrouter_key_here
@@ -136,7 +140,9 @@ MAIL_FROM=KELU <your_verified_sender_address>
 ```
 
 Make random values with `openssl rand -hex 32` on the server.
-`EMBEDDING_PROVIDER=bedrock`, `STORAGE_BACKEND=s3` and `COOKIE_SECURE=true` are fixed in the compose file.
+`STORAGE_BACKEND=s3` and `COOKIE_SECURE=true` are fixed in the compose file. Embeddings default to
+`e5-small` (384-dim, its own Qdrant collection and a 0.78 match threshold, all set automatically).
+Set `EMBEDDING_PROVIDER=bge-m3` only on an ~8 GB server, or `bedrock` once Bedrock works on your account.
 
 ## 5. First run
 
@@ -145,11 +151,11 @@ Make random values with `openssl rand -hex 32` on the server.
 docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml exec backend python -m app.manage make-admin you@example.com
 ```
 
-2. **Knowledge base.** The server uses Bedrock vectors, so the old local BGE-M3 index can't be reused.
-   First copy the OCR text you already paid for, from your laptop:
+2. **Knowledge base.** The server's Qdrant starts empty. First copy the OCR text you already
+   paid for, from your laptop:
    `.venv\Scripts\python -m app.manage push-ocr-cache`
-   Then upload the PDFs again in **Admin → Knowledge base**: their text is found in S3, so only
-   embedding runs (cents, no OCR).
+   Then upload the PDFs again in **Admin → Knowledge base**: their text is found in S3, so no OCR
+   is paid for again; only embedding runs on the server (free, a few minutes per paper).
 
 ## 6. Daily database backup to S3
 
@@ -173,9 +179,14 @@ This rebuilds both the site and the backend. Database migrations run automatical
 
 ## Costs and limits
 
-- Covered by the AWS free plan's credit; the plan ends **16 May 2027**: upgrade before then or the
-  account (and bucket) is closed. Roughly: `t4g.small` + 30 GB disk + Elastic IP ≈ USD 20–25/month,
-  S3 and Bedrock embeddings cents. Check AWS Billing monthly.
+- Paid from the AWS free plan's USD 100 credit; AWS access ends when the credit runs out or on
+  **16 May 2027**, whichever is first: upgrade before then or the account (and bucket) is closed.
+  Roughly `t4g.small` ≈ USD 15/month + 30 GB disk + Elastic IP ≈ **USD 22–25/month**, so the credit
+  lasts **about 4 months** of 24/7 running. Stopping the instance when nobody needs it leaves only
+  disk and IP (≈ USD 7/month). Check AWS Billing monthly.
+- Search quality: e5-small ranks the right material first in both languages, but separates it from
+  unrelated text less sharply than BGE-M3. After upgrading the plan, `EMBEDDING_PROVIDER=bedrock`
+  (2 GB server) or `bge-m3` (8 GB server) improve it; either needs the knowledge base re-uploaded.
 - Data is stored in Australia: a cross-border transfer under Sri Lanka's PDPA 2022 (include in the
   pre-launch legal review).
 - Long admin AI calls (feedback review) wait inside the request; Caddy has no timeout, but a

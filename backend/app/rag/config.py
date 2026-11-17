@@ -27,7 +27,7 @@ class RagSettings(BaseSettings):
     vector_collection: str = "kelu_chunks_v1"   # bump suffix when embedding model changes
 
     # Embeddings (Tamil + English in one vector space): see app/rag/embeddings.py.
-    embedding_provider: str = "bge-m3"         # bge-m3 | bedrock | fake
+    embedding_provider: str = "bge-m3"         # bge-m3 | e5-small | bedrock | fake
     embedding_dim: int = 1024
     # Bedrock: cohere.embed-multilingual-v3 (1024-dim), cohere.embed-v4:0, or amazon.titan-embed-text-v2:0.
     bedrock_embedding_model: str = "cohere.embed-multilingual-v3"
@@ -79,10 +79,21 @@ class RagSettings(BaseSettings):
     @model_validator(mode="after")
     def _collection_per_model(self) -> "RagSettings":
         """Vectors from different models can't share a collection: the scores would be noise.
-        Switching to Bedrock without naming a collection gets its own, instead of silently
-        mixing with the BGE-M3 one (VECTOR_COLLECTION set by hand always wins)."""
-        if self.embedding_provider == "bedrock" and "vector_collection" not in self.model_fields_set:
+        A model other than BGE-M3 gets its own collection (and e5-small its own vector size)
+        instead of silently mixing with the BGE-M3 one. Values set by hand always win."""
+        if self.embedding_provider == "e5-small":
+            if "embedding_dim" not in self.model_fields_set:
+                self.embedding_dim = 384
+            # e5 squeezes every score into ~0.7-0.9 (BGE-M3: ~0.3-0.6), so BGE-M3's 0.35 would let
+            # everything through. Measured 2026-11-17: relevant top hits 0.79-0.87, unrelated 0.69-0.80.
+            if "retrieval_min_score" not in self.model_fields_set:
+                self.retrieval_min_score = 0.78
+            model = "e5_small"
+        elif self.embedding_provider == "bedrock":
             model = self.bedrock_embedding_model.split(":")[0].replace(".", "_").replace("-", "_")
+        else:
+            return self
+        if "vector_collection" not in self.model_fields_set:
             self.vector_collection = f"kelu_chunks_{model}_{self.embedding_dim}"
         return self
 

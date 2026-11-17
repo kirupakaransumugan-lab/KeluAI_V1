@@ -4,8 +4,11 @@ Provider choice is an open decision. Requirements for KELU:
   * Tamil + English in the same vector space (a Tamil question must find an
     English-medium marking scheme for the same paper and vice versa).
   * Tolerates LaTeX / maths tokens.
-Providers (EMBEDDING_PROVIDER): bge-m3 (self-hosted, default for local dev), bedrock (hosted
-on AWS, used in production so the server needs little RAM), fake (tests).
+Providers (EMBEDDING_PROVIDER):
+  bge-m3    self-hosted, best quality, ~3 GB RAM (default; the laptop)
+  e5-small  self-hosted multilingual-e5-small, ~1 GB RAM (the 2 GB AWS server)
+  bedrock   hosted on AWS, no RAM (blocked on the AWS free plan for now)
+  fake      tests
 """
 from __future__ import annotations
 
@@ -40,6 +43,33 @@ class BgeM3Embedder:
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed_documents([text])[0]
+
+
+class E5SmallEmbedder:
+    """multilingual-e5-small via sentence-transformers: Tamil + English in one 384-dim space,
+    ~470 MB, ~1 GB of RAM in use, so it fits a 2 GB server next to MySQL and Qdrant
+    (BGE-M3 needs ~3 GB). Weaker than BGE-M3 on hard cross-language matches; the price of
+    the small server.
+
+    E5 was trained with role prefixes: documents as "passage: ...", questions as "query: ...".
+    Leaving them out noticeably hurts retrieval."""
+
+    dim = 384
+
+    def __init__(self, model_name: str = "intfloat/multilingual-e5-small", device: str | None = None):
+        from sentence_transformers import SentenceTransformer  # heavy import, lazy
+
+        self._model = SentenceTransformer(model_name, device=device)
+
+    def _encode(self, texts: list[str]) -> list[list[float]]:
+        vecs = self._model.encode(texts, batch_size=16, normalize_embeddings=True)
+        return [v.tolist() for v in vecs]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._encode([f"passage: {t}" for t in texts])
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._encode([f"query: {text}"])[0]
 
 
 class BedrockEmbedder:
@@ -136,6 +166,8 @@ class FakeEmbedder:
 def build_embedder(provider: str, dim: int) -> Embedder:
     if provider == "bge-m3":
         return BgeM3Embedder()
+    if provider == "e5-small":
+        return E5SmallEmbedder()
     if provider == "fake":
         return FakeEmbedder(dim)
     if provider == "bedrock":

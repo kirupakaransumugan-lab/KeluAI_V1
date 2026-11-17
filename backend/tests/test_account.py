@@ -72,7 +72,11 @@ def test_import_skips_repeats(client):
 
 # ---------- Subscription ----------
 
-def test_new_student_is_on_the_trial(client):
+def test_new_student_is_on_the_trial(client, monkeypatch):
+    # Set explicitly: a developer's backend/.env may switch Stripe on.
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "stripe_secret_key", None)
     _register(client)
     body = client.get("/api/v1/subscription").json()
     assert body["current"]["plan"] == "trial" and body["current"]["status"] == "trialing"

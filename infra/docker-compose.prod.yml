@@ -1,6 +1,6 @@
-# KELU production, all on one AWS EC2 server: the website and HTTPS (Caddy), backend, MySQL 8
-# and Qdrant. Files live in S3 and embeddings come from Bedrock, so nothing here needs a big
-# disk or much RAM.
+# KELU production, all on one AWS EC2 server (t4g.small, 2 GB + 2 GB swap): the website and HTTPS
+# (Caddy), backend with the small multilingual-e5 embedding model, MySQL 8 and Qdrant. Files live
+# in S3. EMBEDDING_PROVIDER=bge-m3 gives better Tamil matching but needs an ~8 GB server.
 #
 # On the server, from the repo root (see docs/deployment.md):
 #   docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d --build
@@ -28,12 +28,14 @@ services:
       context: ../backend
       dockerfile: ../infra/Dockerfile
     env_file: .env.prod
+    volumes:
+      - models:/models          # embedding model weights, downloaded once
     environment:
       # Service names on the private Docker network; nothing below is reachable from the internet.
       DATABASE_HOST: mysql
       DATABASE_PORT: "3306"
       VECTOR_DB_URL: http://qdrant:6333
-      EMBEDDING_PROVIDER: bedrock
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-e5-small}
       STORAGE_BACKEND: s3
       COOKIE_SECURE: "true"
     depends_on:
@@ -51,7 +53,7 @@ services:
       MYSQL_PASSWORD: ${DATABASE_PASSWORD:?set DATABASE_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci",
-              "--innodb-buffer-pool-size=256M", "--performance-schema=OFF"]   # fits a 2 GB server
+              "--innodb-buffer-pool-size=256M", "--performance-schema=OFF"]   # fits a 2 GB server with the model
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -69,6 +71,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  models:
   caddy_data:
   mysql_data:
   qdrant_data:

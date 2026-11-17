@@ -58,3 +58,9 @@ def test_bedrock_gets_its_own_collection_unless_one_is_named():
         "kelu_chunks_cohere_embed_multilingual_v3_1024"
     assert RagSettings(_env_file=None, embedding_provider="bedrock", vector_collection="mine").vector_collection == "mine"
     assert RagSettings(_env_file=None).vector_collection == "kelu_chunks_v1"
+
+
+def test_e5_small_gets_its_own_size_and_collection():
+    s = RagSettings(_env_file=None, embedding_provider="e5-small")
+    assert (s.embedding_dim, s.vector_collection, s.retrieval_min_score) == (384, "kelu_chunks_e5_small_384", 0.78)
+    assert RagSettings(_env_file=None).retrieval_min_score == 0.35          # BGE-M3 keeps its own
