@@ -1,7 +1,7 @@
 """Admin > Subscriptions & Payments.
 
-Online payment isn't connected (subscription.PAYMENTS_ENABLED), so an admin records each
-payment by hand: that adds a payment row and the paid subscription it buys. A renewal starts
+Card payments arrive through Stripe (app/services/stripe_payments.py); an admin records the
+rest (bank transfer, cash) by hand. Both add a payment row and the paid subscription it buys. A renewal starts
 when the student's current paid plan ends, so paying early never loses days.
 """
 from __future__ import annotations
@@ -51,7 +51,7 @@ def _payment_out(p: Payment, people: dict[int, User]) -> dict:
         "id": p.id, "user_id": p.user_id, "student": student.full_name if student else "—",
         "email": student.email if student else None, "plan": p.plan, "amount_lkr": p.amount_lkr,
         "method": p.method, "reference": p.reference, "note": p.note, "paid_at": _iso(p.paid_at),
-        "recorded_by": admin.full_name if admin else None,
+        "recorded_by": admin.full_name if admin else ("Stripe" if p.stripe_session_id else None),
     }
 
 
@@ -99,15 +99,10 @@ def _student(db: Session, user_id: int) -> User:
     return user
 
 
-def record_payment(db: Session, admin: User, *, user_id: int, plan: str, amount_lkr: int, method: str,
-                   reference: str | None = None, note: str | None = None, paid_at: datetime | None = None,
-                   now: datetime | None = None) -> Payment:
-    now = now or utcnow()
+def plan_window(user: User, plan: str, now: datetime) -> tuple[datetime, datetime]:
+    """When `plan` would start and end if `user` bought it now. Raises BillingError if it can't."""
     if plan not in PAID_PLANS:
         raise BillingError("bad_plan")
-    if method not in METHODS:
-        raise BillingError("bad_method")
-    user = _student(db, user_id)
     # Renewing early: the new plan starts when the running paid plan ends.
     running = [s.ends_at for s in user.subscriptions
                if s.plan in PAID_PLANS and s.status != SubscriptionStatus.cancelled and s.ends_at > now]
@@ -118,13 +113,28 @@ def record_payment(db: Session, admin: User, *, user_id: int, plan: str, amount_
         raise BillingError(err.code) from None
     if ends <= starts:
         raise BillingError("plan_already_over")       # e.g. "Until exam" for a student past their exam
+    return starts, ends
+
+
+def record_payment(db: Session, admin: User | None, *, user_id: int, plan: str, amount_lkr: int, method: str,
+                   reference: str | None = None, note: str | None = None, paid_at: datetime | None = None,
+                   stripe_session_id: str | None = None, now: datetime | None = None) -> Payment:
+    """Add a payment and the plan it buys. `admin` is None when the Stripe webhook records it."""
+    now = now or utcnow()
+    if plan not in PAID_PLANS:
+        raise BillingError("bad_plan")
+    if method not in METHODS:
+        raise BillingError("bad_method")
+    user = _student(db, user_id)
+    starts, ends = plan_window(user, plan, now)
     sub = Subscription(user_id=user.id, plan=plan, status=SubscriptionStatus.active,
                        starts_at=starts, ends_at=ends)
     db.add(sub)
     db.flush()
     payment = Payment(user_id=user.id, subscription_id=sub.id, plan=plan, amount_lkr=amount_lkr, method=method,
                       reference=(reference or "").strip() or None, note=(note or "").strip() or None,
-                      paid_at=paid_at or now, recorded_by_id=admin.id)
+                      paid_at=paid_at or now, recorded_by_id=admin.id if admin else None,
+                      stripe_session_id=stripe_session_id)
     db.add(payment)
     db.commit()
     return payment

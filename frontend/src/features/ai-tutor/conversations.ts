@@ -27,7 +27,6 @@ export interface Conversation {
 export type Group = "today" | "yesterday" | "week" | "older";
 export const GROUP_ORDER: Group[] = ["today", "yesterday", "week", "older"];
 export const MAX_HINT_LEVEL = 3;
-export const DAILY_LIMIT = 20;
 
 const key = (userId: number) => `kelu.tutor.v1.${userId}`;
 
@@ -55,12 +54,6 @@ export function saveConversations(userId: number, list: Conversation[]): void {
 export function titleFrom(text: string): string {
   const line = text.replace(/\s+/g, " ").trim();
   return line.length > 48 ? `${line.slice(0, 47)}…` : line;
-}
-
-/** Messages the student sent since local midnight, across all chats. */
-export function sentToday(list: Conversation[], now = new Date()): number {
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  return list.reduce((n, c) => n + c.messages.filter((m) => m.role === "user" && m.at >= midnight).length, 0);
 }
 
 /** Which sidebar heading a chat last touched at `ts` goes under. */

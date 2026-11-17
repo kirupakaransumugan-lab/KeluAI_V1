@@ -181,7 +181,10 @@ export interface SubscriptionSummary {
   current: SubscriptionRow | null;
   history: SubscriptionRow[];
   plans: PlanInfo[];
+  /** Stripe Checkout is set up (backend STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET). */
   payments_enabled: boolean;
+  /** Billing kinds a student can pay for online; the rest (the class plan) go through an admin. */
+  self_serve_billing: PlanBilling[];
 }
 
 /** GET /plans: the public price list (what Admin > Plans set to show). No login needed. */
@@ -192,6 +195,8 @@ export const plansApi = {
 
 export const subscriptionApi = {
   get: () => request<SubscriptionSummary>("GET", "/subscription"),
+  /** Starts a Stripe Checkout; send the browser to `url`. The plan starts when Stripe's webhook arrives. */
+  checkout: (plan: PlanInfo["key"]) => request<{ url: string }>("POST", "/payments/checkout", { plan }),
 };
 
 export type TutorMode = "practice" | "exam" | "review" | "free";
@@ -626,7 +631,14 @@ export const quizzesApi = {
     }),
 };
 
+/** GET /tutor/usage: what a student used today (Sri Lanka day). `limit` null = no limit (paid). */
+export interface DailyUsage {
+  chat: { used: number; limit: number | null };
+  quiz: { used: number; limit: number | null };
+}
+
 export const tutorApi = {
+  usage: () => request<DailyUsage>("GET", "/tutor/usage"),
   /** `image`: a data URL attached to the newest message only (the backend never stores it). */
   chat: (history: ChatTurn[], lang: Medium, hint_level: number, mode: TutorMode = "practice", image?: string) =>
     request<TutorReply>("POST", "/tutor/chat", { history, lang, hint_level, mode, image }),
@@ -634,6 +646,7 @@ export const tutorApi = {
   fullQuiz: (lang: Medium, exclude: number[]) =>
     request<{ questions: QuizQuestion[] }>("POST", "/tutor/quiz/set", { lang, exclude }),
   /** One new question on a subject, for place `slot` of a quiz, written by the AI now. */
-  quizQuestion: (lang: Medium, slot: number, topic: string) =>
-    request<{ question: QuizQuestion; model: string }>("POST", "/tutor/quiz/question", { lang, slot, topic }),
+  /** `quizId`: the quiz's id in this browser, so its five questions count as one daily quiz. */
+  quizQuestion: (lang: Medium, slot: number, topic: string, quizId: number) =>
+    request<{ question: QuizQuestion; model: string }>("POST", "/tutor/quiz/question", { lang, slot, topic, quiz_id: quizId }),
 };

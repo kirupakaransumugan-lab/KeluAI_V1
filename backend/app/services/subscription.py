@@ -1,7 +1,7 @@
 """What plan a student is on, read from the subscriptions table.
 
-Online payment isn't connected yet (PAYMENTS_ENABLED), so a plan only changes when an admin
-adds a row. A row past its end date counts as expired even if its status was never updated.
+A plan starts when a card payment arrives through Stripe (app/services/stripe_payments.py) or
+an admin records a payment. A row past its end date counts as expired even if its status was never updated.
 """
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from app.core.clock import utcnow
 from app.models.user import Subscription, SubscriptionStatus, User
 from app.services.plans import list_plans
 
-PAYMENTS_ENABLED = False
 LIVE = (SubscriptionStatus.trialing, SubscriptionStatus.active)
 
 
@@ -42,5 +41,9 @@ def summary(user: User, now: datetime | None = None) -> dict:
     live = [h for h in history if h["status"] in ("trialing", "active")]
     current = next((h for h in live if h["plan"] != "trial"), None) or (live[0] if live else None) \
         or (history[0] if history else None)
+    # Imported here: stripe_payments -> admin_billing -> this module would be a loop at import time.
+    from app.services.stripe_payments import SELF_SERVE_BILLING, enabled as payments_enabled
+
     plans = list_plans(object_session(user), visible_only=True)     # the prices an admin set
-    return {"current": current, "history": history, "plans": plans, "payments_enabled": PAYMENTS_ENABLED}
+    return {"current": current, "history": history, "plans": plans, "payments_enabled": payments_enabled(),
+            "self_serve_billing": list(SELF_SERVE_BILLING)}

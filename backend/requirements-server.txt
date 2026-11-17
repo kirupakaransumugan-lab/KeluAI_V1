@@ -1,0 +1,37 @@
+# KELU backend, server install: everything the API needs, without the local embedding model.
+# Production embeds with Amazon Bedrock (EMBEDDING_PROVIDER=bedrock), so PyTorch (~1-2 GB) stays off
+# the server. The Docker image (infra/Dockerfile) installs this file. Pinned with requirements.txt.
+
+# ---- API ----
+fastapi==0.161.1
+uvicorn[standard]==0.54.0
+pydantic[email]==2.14.1
+pydantic-settings==2.16.1
+
+# ---- Database (MySQL) ----
+sqlalchemy==2.1.6
+alembic==1.20.1
+pymysql==1.2.3
+cryptography==50.0.2         # PyMySQL needs it for MySQL 8 caching_sha2_password
+
+# ---- Auth ----
+bcrypt==5.0.0
+pyjwt==2.15.1
+
+# ---- Time zones (Asia/Colombo on Windows) ----
+tzdata==2026.5
+
+# ---- RAG tutor: Qdrant + OpenRouter (embeddings: Bedrock, or local BGE-M3 in dev) ----
+qdrant-client==1.20.0        # keep within one minor version of the Qdrant server (Docker: qdrant/qdrant:v1.20.0)
+httpx==0.28.1
+
+# ---- PDFs: text extraction and page rendering for OCR ----
+pypdf==6.21.4
+pypdfium2==5.14.0
+pillow==13.0.0
+
+# ---- File storage: Amazon S3 (only used when STORAGE_BACKEND=s3) ----
+boto3==1.44.3
+
+# ---- Payments: Stripe Checkout (off until STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET are set) ----
+stripe==16.1.0

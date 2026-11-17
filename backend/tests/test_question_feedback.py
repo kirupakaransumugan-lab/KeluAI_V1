@@ -39,9 +39,11 @@ def _report(client, kind="mistake", message="The answer should be 2.", image=Non
 
 
 @pytest.fixture
-def images(tmp_path, monkeypatch):
-    monkeypatch.setattr(feedback, "IMAGE_DIR", tmp_path)
-    return tmp_path
+def images(storage):
+    """The stored photos: the folder the test file store keeps feedback/ keys in."""
+    folder = storage.root / "feedback"
+    folder.mkdir(parents=True)
+    return folder
 
 
 @pytest.fixture

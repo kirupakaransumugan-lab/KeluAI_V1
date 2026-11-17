@@ -13,16 +13,14 @@ import binascii
 import re
 import uuid
 from datetime import timedelta
-from pathlib import Path
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import utcnow
 from app.models.question_feedback import QuestionFeedback
-from app.rag.config import BACKEND_DIR
+from app.services import file_storage
 
-IMAGE_DIR = BACKEND_DIR / "var" / "feedback"
+IMAGE_PREFIX = "feedback/"
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 DAILY_LIMIT = 10
 MEDIA_TYPES = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
@@ -77,8 +75,17 @@ def decode_image(encoded: str) -> tuple[bytes, str]:
     return data, ext
 
 
-def image_path(row: QuestionFeedback) -> Path | None:
-    return IMAGE_DIR / row.image_name if row.image_name else None
+def image_key(row: QuestionFeedback) -> str | None:
+    return IMAGE_PREFIX + row.image_name if row.image_name else None
+
+
+def media_type(name: str) -> str:
+    return MEDIA_TYPES[name.rsplit(".", 1)[-1]]
+
+
+def load_image(row: QuestionFeedback) -> bytes | None:
+    key = image_key(row)
+    return file_storage.get_storage().get(key) if key else None
 
 
 def submit(db: Session, user_id: int, snapshot: dict, kind: str, message: str, image_b64: str | None) -> QuestionFeedback:
@@ -90,9 +97,8 @@ def submit(db: Session, user_id: int, snapshot: dict, kind: str, message: str, i
     name = None
     if image_b64:
         data, ext = decode_image(image_b64)
-        IMAGE_DIR.mkdir(parents=True, exist_ok=True)
         name = f"{uuid.uuid4().hex}.{ext}"
-        (IMAGE_DIR / name).write_bytes(data)
+        file_storage.get_storage().put(IMAGE_PREFIX + name, data, MEDIA_TYPES[ext])
     row = QuestionFeedback(user_id=user_id, question_snapshot=snapshot, kind=kind, message=message, image_name=name)
     db.add(row)
     db.commit()
@@ -115,10 +121,9 @@ def review(db: Session, row: QuestionFeedback, llm, text_model: str, vision_mode
     prompt = (f"TOPIC: {q.get('topic')}\nQUESTION:\n{q.get('question')}\n\nANSWER GIVEN:\n{q.get('answer')}\n\n"
               f"The student {'shares another method' if row.kind == 'method' else 'reports a mistake'}:\n"
               f"<student_feedback>\n{row.message}\n</student_feedback>")
-    path = image_path(row)
-    if path and path.exists():
-        media = MEDIA_TYPES[path.suffix.lstrip(".")]
-        url = f"data:{media};base64,{base64.b64encode(path.read_bytes()).decode()}"
+    image = load_image(row)
+    if image is not None:
+        url = f"data:{media_type(row.image_name)};base64,{base64.b64encode(image).decode()}"
         resp = llm.complete_raw(model=vision_model, max_tokens=max_tokens, messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": url}}]},
@@ -132,9 +137,9 @@ def review(db: Session, row: QuestionFeedback, llm, text_model: str, vision_mode
 
 
 def close(db: Session, row: QuestionFeedback) -> None:
-    path = image_path(row)
-    if path:
-        path.unlink(missing_ok=True)
+    key = image_key(row)
+    if key:
+        file_storage.get_storage().delete(key)
     row.image_name = None
     row.status, row.resolved_at = "closed", utcnow()
     db.commit()

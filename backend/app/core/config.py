@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -53,6 +54,25 @@ class Settings(BaseSettings):
     smtp_password: str | None = Field(None, alias="SMTP_PASSWORD")
     smtp_starttls: bool = Field(True, alias="SMTP_STARTTLS")
     mail_from: str = Field("KELU <no-reply@kelu.lk>", alias="MAIL_FROM")
+
+    # File storage (uploads, OCR pages, feedback photos): see app/services/file_storage.py.
+    # "local" = backend/var on this machine; "s3" = a private S3 bucket (needed on hosts whose
+    # disk is wiped on restart). Leave the AWS keys unset on AWS itself to use the IAM role.
+    storage_backend: Literal["local", "s3"] = Field("local", alias="STORAGE_BACKEND")
+    s3_bucket: str | None = Field(None, alias="S3_BUCKET")
+    s3_region: str | None = Field(None, alias="S3_REGION")
+    s3_endpoint_url: str | None = Field(None, alias="S3_ENDPOINT_URL")   # only for non-AWS S3 stores
+    aws_access_key_id: str | None = Field(None, alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: SecretStr | None = Field(None, alias="AWS_SECRET_ACCESS_KEY")
+
+    # Online payment through Stripe Checkout: see app/services/stripe_payments.py.
+    # Both keys unset = payments stay off: the plan cards say "soon" and /payments/* answers 503.
+    # STRIPE_SECRET_KEY: Stripe Dashboard > Developers > API keys (sk_test_... while testing).
+    # STRIPE_WEBHOOK_SECRET: the signing secret of the webhook endpoint (whsec_...).
+    stripe_secret_key: SecretStr | None = Field(None, alias="STRIPE_SECRET_KEY")
+    stripe_webhook_secret: SecretStr | None = Field(None, alias="STRIPE_WEBHOOK_SECRET")
+    # Where Stripe sends the student back after paying or cancelling (the frontend's address).
+    app_url: str = Field("http://localhost:5173", alias="APP_URL")
 
     reset_code_minutes: int = 15
     reset_code_max_attempts: int = 5

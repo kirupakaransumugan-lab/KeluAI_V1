@@ -49,7 +49,7 @@ def test_a_question_needs_login(client):
 
 
 def test_a_question_is_written_on_the_subject(client, generator):
-    q = client.post(URL, json={"lang": "en", "slot": 3, "topic": "friction"}).json()["question"]
+    q = client.post(URL, json={"lang": "en", "slot": 3, "topic": "friction", "quiz_id": 1}).json()["question"]
     assert (q["number"], q["topic"]) == (3, "Friction") and q["steps"]
     assert generator.calls == [(False, "en", "friction", 3, 3)]          # global library, level 3 of 5
 
@@ -67,7 +67,7 @@ def test_an_unusable_question_is_a_clear_error(client, generator):
     def fail(**_):
         raise QuizIncomplete("no")
     generator.generate_for_topic = fail
-    resp = client.post(URL, json={"slot": 1, "topic": "limits"})
+    resp = client.post(URL, json={"slot": 1, "topic": "limits", "quiz_id": 1})
     assert resp.status_code == 502 and resp.json()["detail"]["code"] == "quiz_failed"
 
 

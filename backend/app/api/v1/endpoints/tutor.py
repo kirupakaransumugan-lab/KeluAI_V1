@@ -11,6 +11,9 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.rag.agent.tutor_agent import LLMNotConfigured, TutorAgent, build_llm
@@ -23,6 +26,7 @@ from app.core.database import get_db
 from app.rag.quiz import PRACTICE_SIZE, NoQuestionsIndexed, QuizGenerator, QuizIncomplete
 from app.rag.retrieval import Retriever
 from app.rag.tamil_text import question_language
+from app.services import usage_limits
 from app.rag.types import AccessScope, TutorMode
 from app.rag.vector_store import VectorStore
 from app.services import quiz_bank, quiz_plan
@@ -57,6 +61,7 @@ class QuizQuestionRequest(BaseModel):
     lang: str = Field(default="en", pattern="^(en|ta)$")
     slot: int = Field(ge=1, le=PRACTICE_SIZE)      # its place in the quiz
     topic: str                                     # the subject's key
+    quiz_id: int = Field(ge=0)                     # the browser's id for the quiz: its questions count once
 
 
 @lru_cache
@@ -123,12 +128,29 @@ def info(_: User = Depends(get_current_user)) -> dict:
     return {"model": s.llm_model, "modes": [m.value for m in TutorMode]}
 
 
+def _limit(err: usage_limits.LimitReached) -> HTTPException:
+    return HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                         detail={"code": "daily_limit", "kind": err.kind, "limit": err.limit})
+
+
+@router.get("/usage")
+def usage(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """Chat messages and practice quizzes used today, with the limits (null = unlimited)."""
+    return usage_limits.status(db, user)
+
+
 @router.post("/chat")
 def chat(req: ChatRequest, user: User = Depends(get_current_user),
-         agent: TutorAgent = Depends(get_agent)) -> dict:
+         agent: TutorAgent = Depends(get_agent), db: Session = Depends(get_db)) -> dict:
     # Plain `def`: FastAPI runs it in a worker thread, so the blocking LLM call is fine.
     if req.history[-1].role != "user":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "history_must_end_with_user"})
+    counts = req.mode != TutorMode.EXAM            # exam mode answers without the AI
+    if counts:
+        try:
+            usage_limits.check(db, user, "chat")
+        except usage_limits.LimitReached as err:
+            raise _limit(err) from None
     image = None
     if req.image:
         try:
@@ -144,6 +166,8 @@ def chat(req: ChatRequest, user: User = Depends(get_current_user),
     except Exception:
         log.exception("tutor reply failed for user %s", user.id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail={"code": "tutor_failed"}) from None
+    if counts:
+        usage_limits.record(db, user, "chat")      # only once the AI has answered
     return {"content": res.content, "sources": res.sources, "tool_calls": res.tool_calls,
             "tokens": res.tokens_used, "truncated": res.truncated, "model": res.model_name,
             "hint_level": res.hint_level, "lang": lang}
@@ -163,7 +187,7 @@ def full_quiz(req: FullQuizRequest, user: User = Depends(get_current_user), db: 
 
 @router.post("/quiz/question")
 def quiz_question(req: QuizQuestionRequest, user: User = Depends(get_current_user),
-                  generator: QuizGenerator = Depends(get_quiz_generator)) -> dict:
+                  generator: QuizGenerator = Depends(get_quiz_generator), db: Session = Depends(get_db)) -> dict:
     """One new question on a subject, for place `slot` of a student's quiz, where question 1 is the
     easiest and question 5 the hardest. The page asks for each separately, so the first appears
     while the rest are written. Questions aren't
@@ -171,6 +195,10 @@ def quiz_question(req: QuizQuestionRequest, user: User = Depends(get_current_use
     topic = by_key(req.topic)
     if not topic:
         raise HTTPException(422, detail={"code": "unknown_topic"})
+    try:
+        usage_limits.check(db, user, "quiz", req.quiz_id)
+    except usage_limits.LimitReached as err:
+        raise _limit(err) from None
     # Global library only: a practice question must not draw on a student's private upload.
     scope = AccessScope(user_id=user.id, role=user.role.value, include_private=False)
     try:
@@ -182,4 +210,5 @@ def quiz_question(req: QuizQuestionRequest, user: User = Depends(get_current_use
     except Exception:
         log.exception("quiz question failed for user %s", user.id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail={"code": "quiz_failed"}) from None
+    usage_limits.record(db, user, "quiz", req.quiz_id)   # once per quiz, on its first written question
     return {"question": asdict(q), "model": generator.model}

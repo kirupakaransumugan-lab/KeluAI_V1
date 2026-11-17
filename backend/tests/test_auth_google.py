@@ -28,7 +28,9 @@ def test_providers_reports_google_client_id(client, google_on):
     assert client.get("/api/v1/auth/providers").json() == {"google_client_id": "test-client-id", "microsoft_client_id": None}
 
 
-def test_google_disabled_without_client_id(client):
+def test_google_disabled_without_client_id(client, monkeypatch):
+    # Set explicitly: a developer's backend/.env may switch Google on.
+    monkeypatch.setattr(get_settings(), "google_client_id", None)
     resp = client.post(URL, json={"credential": "good-token"})
     assert resp.status_code == 503
 

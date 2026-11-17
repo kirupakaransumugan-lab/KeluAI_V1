@@ -5,7 +5,7 @@ Reports show no student details: the admin is judging the maths, not the student
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -48,14 +48,14 @@ def open_reports(db: Session = Depends(get_db), _: User = Depends(get_current_ad
 
 
 @router.get("/{feedback_id}/image")
-def image(feedback_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_admin)) -> FileResponse:
+def image(feedback_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_admin)) -> Response:
     row = _open(db, feedback_id)
-    path = feedback.image_path(row)
-    if path is None or not path.exists():
+    data = feedback.load_image(row)
+    if data is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"code": "image_not_found"})
     # The type comes from the checked extension; nosniff stops a browser guessing another.
-    return FileResponse(path, media_type=feedback.MEDIA_TYPES[path.suffix.lstrip(".")],
-                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
+    return Response(data, media_type=feedback.media_type(row.image_name),
+                    headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
 
 
 @router.post("/{feedback_id}/review")

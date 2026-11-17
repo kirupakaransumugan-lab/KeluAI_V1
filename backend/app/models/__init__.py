@@ -1,5 +1,6 @@
 # Import every model here so Base.metadata is complete for Alembic autogenerate.
 from app.models.ai_usage import AiUsage
+from app.models.daily_usage import DailyUsage
 from app.models.password_reset import PasswordResetCode
 from app.models.payment import Payment
 from app.models.plan import Plan

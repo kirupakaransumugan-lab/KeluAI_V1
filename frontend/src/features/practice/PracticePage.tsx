@@ -5,20 +5,27 @@ import { MathText } from "../../components/math/MathText";
 import type { DashboardContext } from "../../layouts/DashboardLayout";
 import {
   ApiError, progressApi, quizzesApi, savedApi, tutorApi,
-  type FullQuizInfo, type PracticeSubject, type QuizQuestion, type SavedQuestion,
+  type DailyUsage, type FullQuizInfo, type PracticeSubject, type QuizQuestion, type SavedQuestion,
 } from "../../services/api";
 import { fill } from "../../utils/dates";
 import { icons } from "../dashboard/icons";
 import {
-  FULL_KEY, addQuestion, answeredSteps, attemptAnswers, clearLocalSaved, emptySet, failSlot, fullSet, isDone,
-  loadLocalSaved, loadSeen, loadSets, markSeen, quizState, saveSets, score, stepRight,
+  FULL_KEY, addQuestion, answeredSteps, attemptAnswers, clearLocalSaved, emptySet, failSlot, fullDeadline, fullSet, isDone,
+  loadLocalSaved, loadSeen, loadSets, markSeen, quizState, saveSets, score, stepRight, timeLeft,
   type PracticeSet, type PracticeSets, type QuestionProgress, type QuizState,
 } from "./practiceStore";
 import { FeedbackForm } from "./FeedbackForm";
 import { SubjectPicker } from "./SubjectPicker";
 import { topicGlyph } from "./topicIcon";
 import { ask, listen, runningCount, wasAsked } from "./questionQueue";
+import { holdBreaks } from "../wellbeing/breakTimer";
 import "../../styles/practice.css";
+
+/** 2999000 ms -> "49:59". */
+const clock = (ms: number) => {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
 // Clicking a topic starts its quiz: the AI writes 5 new questions on it, one request each (POST
 // /tutor/quiz/question), climbing from easiest to hardest, each with a 3-step guided solve and the
@@ -68,6 +75,14 @@ export function PracticePage() {
 
   const [sets, setSets] = useState<PracticeSets>(() => loadSets(user.id));
   const [openKey, setOpenKey] = useState<string | null>(null);     // the quiz in the overlay
+  // Free plan: quizzes used today, from the server (limit null = unlimited, for paid students).
+  const [quizUsage, setQuizUsage] = useState<DailyUsage["quiz"]>();
+  const refreshUsage = useCallback(() => {
+    tutorApi.usage().then((u) => setQuizUsage(u.quiz), () => undefined);
+  }, []);
+  useEffect(refreshUsage, [refreshUsage]);
+  const quizLimit = quizUsage?.limit ?? null;
+  const quizzesLeft = quizLimit === null ? null : Math.max(0, quizLimit - (quizUsage?.used ?? 0));
   const [subjects, setSubjects] = useState<PracticeSubject[]>();
   const [fullQuiz, setFullQuiz] = useState<FullQuizInfo>();
   const [starting, setStarting] = useState(false);
@@ -97,6 +112,32 @@ export function PracticePage() {
   useEffect(() => { loadSubjects(); }, [loadSubjects]);
 
   useEffect(() => saveSets(user.id, sets), [sets, user.id]);
+
+  // ---------- The 50-minute clock (whole-syllabus quiz only) ----------
+  // Ticks once a second while a timed quiz is unfinished. When time is up the quiz is finished
+  // for the student, exactly as "Finish quiz" would (so the marks are saved as usual), and its
+  // results open with every answer and reason.
+  const fullSetNow = sets[FULL_KEY];
+  const clockRunning = !!fullSetNow && fullSetNow.submittedAt === null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!clockRunning) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [clockRunning]);
+  useEffect(() => {
+    if (!fullSetNow || fullSetNow.submittedAt !== null || now < fullDeadline(fullSetNow)) return;
+    const id = fullSetNow.createdAt;
+    setSets((all) => mapSet(all, id, (x) => (x.submittedAt !== null ? x
+      : { ...x, submittedAt: fullDeadline(x), current: 0, timedOut: true })));
+    setOpenKey(FULL_KEY);
+  }, [now, fullSetNow]);
+  // No eye-break pop-up while the exam clock runs: it would eat the student's 50 minutes.
+  useEffect(() => {
+    holdBreaks(clockRunning);
+    return () => holdBreaks(false);       // leaving Practice releases the hold
+  }, [clockRunning]);
 
   // Saved questions come from the server. A list an older version kept in this browser is
   // uploaded first (repeats are skipped server-side), then cleared here.
@@ -145,6 +186,7 @@ export function PracticePage() {
       : code === "tutor_not_configured" ? p.errors.notConfigured
       : code === "no_bank_questions" ? p.errors.noFullQuiz
       : code === "full_quiz_locked" ? p.errors.fullLocked
+      : code === "daily_limit" ? fill(p.errors.dailyLimit, { max: quizLimit ?? 10 })
       : code === "network" ? p.errors.network : p.errors.failed;
   };
 
@@ -162,6 +204,7 @@ export function PracticePage() {
     const id = Number(created);
     const slot = Number(slotText);
     bump((n) => n + 1);
+    refreshUsage();                      // a quiz counts once its first question is written
     if (outcome.ok) {
       setSets((all) => mapSet(all, id, (x) => addQuestion(x, slot, outcome.question)));
       return;
@@ -177,14 +220,14 @@ export function PracticePage() {
     setError(errorText(err));
   // errorText follows the language; re-subscribing just replaces the listener.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [navigate, user.id, lang]);
+  }), [navigate, user.id, lang, refreshUsage]);
 
   useEffect(() => {
     const jobs = Object.values(sets).sort((a, b) => a.createdAt - b.createdAt)
       .flatMap((s) => s.todo.map((slot) => ({ s, slot, key: queueKey(s.createdAt, slot) })))
       .filter((j) => !wasAsked(j.key));
     for (const { s, slot, key } of jobs.slice(0, Math.max(0, CONCURRENCY - runningCount()))) {
-      ask(key, () => tutorApi.quizQuestion(s.lang, slot, s.topic).then((r) => r.question));
+      ask(key, () => tutorApi.quizQuestion(s.lang, slot, s.topic, s.createdAt).then((r) => r.question));
     }
   });   // every render: cheap, and only starts requests for questions not already asked for
 
@@ -199,6 +242,10 @@ export function PracticePage() {
     const writing = Object.entries(sets).filter(([k, s]) => k !== key && s.todo.length > 0).length;
     if (writing >= MAX_WRITING) {
       setError(fill(p.errors.tooMany, { n: MAX_WRITING }));
+      return;
+    }
+    if (quizzesLeft === 0) {             // the server refuses it too; this just saves the wait
+      setError(fill(p.errors.dailyLimit, { max: quizLimit ?? 10 }));
       return;
     }
     setError(null);
@@ -274,6 +321,8 @@ export function PracticePage() {
   const unanswered = progress.reduce((n, pr, i) => n + questions[i].steps.length - answeredSteps(pr), 0);
   const result = set ? score(set) : { steps: 0, right: 0, perfect: 0, questions: 0, pct: 0 };
   const onLast = current + 1 >= total;
+  const left = set && !submitted ? timeLeft(set, now) : null;      // null: untimed or finished
+  const lowTime = left !== null && left <= 5 * 60 * 1000;
 
   const close = () => setOpenKey(null);
   const go = (index: number) => {
@@ -390,7 +439,10 @@ export function PracticePage() {
             <span className="pr-glyph" aria-hidden="true">{key === FULL_KEY ? "Σ" : topicGlyph(nameOf(key))}</span>
             <div className="pr-run-copy">
               <strong>{nameOf(key)}</strong>
-              <span>{statusText(state)}</span>
+              <span>
+                {statusText(state)}
+                {key === FULL_KEY && sets[key] && ` · ${fill(p.timeLeftShort, { time: clock(timeLeft(sets[key], now) ?? 0) })}`}
+              </span>
               <Progress value={state.state === "writing" ? state.ready : state.answered} total={state.total} />
             </div>
             <button type="button" className={state.state === "writing" ? "pr-btn-outline pr-btn-sm" : "pr-btn-primary pr-btn-sm"}
@@ -405,6 +457,7 @@ export function PracticePage() {
 
   const picker = <SubjectPicker subjects={subjects} fullQuiz={fullQuiz} fullState={states[FULL_KEY] ?? null}
     states={states} statusText={statusText} starting={starting} error={error} onPick={pickTopic}
+    quota={quizzesLeft === null ? null : fill(p.quizzesLeft, { left: quizzesLeft, max: quizLimit ?? 10 })}
     onNewQuiz={startTopic} onStartFull={startFull} />;
 
   // ---------- The quiz ----------
@@ -499,6 +552,7 @@ export function PracticePage() {
 
   const resultsBody = (
     <>
+      {set?.timedOut && <p className="pr-timeup" role="status">{p.timeUp}</p>}
       <section className="pr-score">
         <div className="pr-score-ring" style={{ ["--pct" as string]: `${result.pct}%` }}>
           <strong>{result.pct}%</strong>
@@ -556,6 +610,12 @@ export function PracticePage() {
                 {writing && <em className="pr-ready"> · {fill(p.readyCount, { n: written, total })}</em>}
               </span>
               <div><Progress value={doneCount} total={total} /><b>{pct}%</b></div>
+            </div>
+          )}
+          {left !== null && (
+            <div className={`pr-timer${lowTime ? " low" : ""}`} role="timer" aria-label={p.timeLeftLabel}
+              title={p.timerNote}>
+              {icons.clock}<b>{clock(left)}</b>
             </div>
           )}
           <button type="button" className="pr-modal-close" onClick={close} aria-label={p.close} title={p.close}>

@@ -13,6 +13,15 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.core.database import Base, get_db
 from app.main import app
+from app.services import file_storage
+
+
+@pytest.fixture(autouse=True)
+def storage(tmp_path, monkeypatch):
+    """Every test gets its own empty file store, so nothing is written to backend/var or S3."""
+    store = file_storage.LocalStorage(tmp_path / "storage")
+    monkeypatch.setattr(file_storage, "get_storage", lambda: store)
+    return store
 
 
 @pytest.fixture

@@ -3,12 +3,12 @@ import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom
 import { useLanguage } from "../../app/providers";
 import { MathText, speakable, unescapeDoubled } from "../../components/math/MathText";
 import type { DashboardContext } from "../../layouts/DashboardLayout";
-import { ApiError, tutorApi, type ChatTurn, type TutorSource } from "../../services/api";
+import { ApiError, tutorApi, type ChatTurn, type DailyUsage, type TutorSource } from "../../services/api";
 import { fill } from "../../utils/dates";
 import { icons } from "../dashboard/icons";
 import {
-  DAILY_LIMIT, GROUP_ORDER, MAX_HINT_LEVEL, groupFor, loadConversations, newId, saveConversations,
-  sentToday, titleFrom, type Conversation, type Group, type Message,
+  GROUP_ORDER, MAX_HINT_LEVEL, groupFor, loadConversations, newId, saveConversations,
+  titleFrom, type Conversation, type Group, type Message,
 } from "./conversations";
 import { ACCEPTED, AttachError, imageFrom, prepareImage, type Attachment } from "./imageAttach";
 import { useChatSync } from "./useChatSync";
@@ -69,8 +69,15 @@ export function TutorPage() {
   const handledQ = useRef(false);
 
   const active = chats.find((c) => c.id === activeId) ?? null;
-  const used = sentToday(chats);
-  const limitReached = used >= DAILY_LIMIT;
+  // Today's messages come from the server, so the limit holds on every device (free plan only;
+  // `limit` is null for paid students). Until it loads, nothing is blocked: the server checks too.
+  const [chatUsage, setChatUsage] = useState<DailyUsage["chat"]>();
+  useEffect(() => {
+    tutorApi.usage().then((u) => setChatUsage(u.chat), () => undefined);
+  }, []);
+  const used = chatUsage?.used ?? 0;
+  const limit = chatUsage?.limit ?? null;
+  const limitReached = limit !== null && used >= limit;
 
   useEffect(() => saveConversations(user.id, chats), [chats, user.id]);   // browser cache
   useChatSync(user.id, chats, setChats);                                    // the server copy
@@ -109,6 +116,7 @@ export function TutorPage() {
     try {
       const r = await tutorApi.chat(history, lang, hintLevel, "practice", image);
       delete retryImage.current[convId];
+      setChatUsage((u) => u && { ...u, used: u.used + 1 });
       appendReply(convId, {
         content: r.truncated ? `${r.content}\n\n${tt.truncated}` : r.content,
         sources: r.sources, hintLevel: r.hint_level,
@@ -117,6 +125,9 @@ export function TutorPage() {
       if (err instanceof ApiError && err.status === 401) {
         navigate("/login", { replace: true });
         return;
+      }
+      if (err instanceof ApiError && err.code === "daily_limit") {
+        setChatUsage((u) => u && { ...u, used: Math.max(u.used, u.limit ?? 0) });
       }
       appendReply(convId, { content: "", error: err instanceof ApiError ? err.code ?? "tutor_failed" : "network" });
     } finally {
@@ -295,7 +306,8 @@ export function TutorPage() {
   const clock = (ts: number) => new Date(ts).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
 
   const errorText = (code: string) =>
-    code === "tutor_not_configured" ? tt.errors.notConfigured : code === "network" ? tt.errors.network
+    code === "daily_limit" ? fill(tt.limitReached, { max: limit ?? 20 })
+      : code === "tutor_not_configured" ? tt.errors.notConfigured : code === "network" ? tt.errors.network
       : code === "bad_image" ? tt.errors.badImage : code === "image_too_large" ? tt.errors.imageTooLarge : tt.errors.failed;
 
   const lastReply = active?.messages[active.messages.length - 1];
@@ -527,7 +539,7 @@ export function TutorPage() {
             {icons.clip}
           </button>
           <textarea ref={inputRef} rows={1} value={draft} maxLength={MAX_TURN_CHARS}
-            placeholder={limitReached ? fill(tt.limitReached, { max: DAILY_LIMIT }) : tt.placeholder}
+            placeholder={limitReached ? fill(tt.limitReached, { max: limit ?? 0 }) : tt.placeholder}
             aria-label={tt.placeholder} disabled={limitReached}
             onPaste={(e) => { const f = imageFrom(e.clipboardData?.items); if (f) { e.preventDefault(); void attach(f); } }}
             onChange={(e) => { setDraft(e.target.value); autosize(e.target); }} onKeyDown={onKeyDown} />
@@ -543,7 +555,9 @@ export function TutorPage() {
           </button>
         </form>
         <footer className="tu-foot">
-          <span><span className="db-amber">{icons.sparkle}</span>{fill(tt.usage, { n: Math.min(used, DAILY_LIMIT), max: DAILY_LIMIT })}</span>
+          {limit !== null && (
+            <span><span className="db-amber">{icons.sparkle}</span>{fill(tt.usage, { n: Math.min(used, limit), max: limit })}</span>
+          )}
           <span>{tt.disclaimer}</span>
         </footer>
       </section>

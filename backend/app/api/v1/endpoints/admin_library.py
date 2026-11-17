@@ -70,10 +70,10 @@ async def upload(request: Request, background: BackgroundTasks,
         _fail(kb.KbError("busy", "Another document is still being processed. Try again when it finishes."))
     data = await request.body()
     try:
-        job, path, info = kb.prepare_upload(filename, data, lang)
+        job, key, info = kb.prepare_upload(filename, data, lang)
     except kb.KbError as err:
         _fail(err)
-    background.add_task(kb.run_upload, job["id"], path, info, get_store, get_embedder, session_factory)
+    background.add_task(kb.run_upload, job["id"], key, info, get_store, get_embedder, session_factory)
     return job
 
 

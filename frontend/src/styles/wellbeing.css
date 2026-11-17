@@ -1,0 +1,62 @@
+/* ---------- Eye-and-mind break (features/wellbeing) ----------
+   A card over the blurred page, above the quiz overlay (z 80). The scene is an illustration, so
+   its colours stay the same in dark mode; the card itself follows the theme. */
+.wb-scrim {
+  position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px;
+  background: rgba(20, 50, 30, 0.35);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  animation: wb-fade 0.3s ease-out;
+}
+.wb-card {
+  width: min(560px, 100%); max-height: calc(100dvh / var(--z, 1) - 32px); overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  padding: 18px 18px 22px; border-radius: 26px; outline: none;
+  background: var(--s-fffdfc); color: var(--ink); box-shadow: 0 30px 90px rgba(20, 50, 30, 0.3);
+}
+.wb-card h2 { margin: 6px 0 0; font-family: "Baloo 2", "Noto Sans Tamil", sans-serif; font-size: 24px; font-weight: 800; }
+.wb-card p { margin: 0; max-width: 44ch; line-height: 1.5; }
+.wb-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; }
+
+.wb-btn {
+  min-height: 44px; padding: 0 20px; border: 0; border-radius: 14px; font: inherit; font-weight: 700; cursor: pointer;
+  background: linear-gradient(90deg, #2f8f4e, #4fae66); color: #fff; box-shadow: 0 10px 24px rgba(47, 143, 78, 0.25);
+}
+.wb-btn:hover { filter: brightness(1.06); }
+.wb-btn.ghost { background: var(--s-ffffff); color: var(--ink); border: 1.5px solid #9fd8a6; box-shadow: none; }
+.wb-btn:focus-visible { outline: 3px solid rgba(47, 143, 78, 0.45); outline-offset: 2px; }
+
+.wb-stage { position: relative; width: 100%; border-radius: 18px; overflow: hidden; }
+.wb-scene { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; border-radius: 18px; }
+.wb-count {
+  position: absolute; top: 10px; right: 12px; padding: 4px 10px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85); color: #1f5131; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* Scene motion: slow and soft, nothing that pulls the eye sharply. */
+.wb-cloud { animation: wb-drift 26s linear infinite alternate; }
+.wb-cloud.slow { animation-duration: 38s; }
+.wb-tree { animation: wb-sway 5s ease-in-out infinite alternate; }
+.wb-sun { animation: wb-glow 6s ease-in-out infinite alternate; }
+.wb-flutter { animation: wb-fly 14s ease-in-out infinite; }
+@keyframes wb-drift { to { transform: translateX(90px); } }
+@keyframes wb-sway { from { transform: rotate(-1.6deg); } to { transform: rotate(1.6deg); } }
+@keyframes wb-glow { to { opacity: 0.75; } }
+@keyframes wb-fly {
+  0% { transform: translate(40px, 150px); } 25% { transform: translate(200px, 120px); }
+  50% { transform: translate(360px, 160px); } 75% { transform: translate(520px, 125px); } 100% { transform: translate(40px, 150px); }
+}
+@keyframes wb-fade { from { opacity: 0; } }
+
+/* Bubble game: bubbles rise over the scene; tap to pop. */
+.wb-game { position: absolute; inset: 0; overflow: hidden; touch-action: manipulation; }
+.wb-bubble {
+  position: absolute; bottom: -70px; padding: 0; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(160, 225, 180, 0.55) 45%, rgba(79, 174, 102, 0.35));
+  animation: wb-rise linear forwards;
+}
+@keyframes wb-rise { to { transform: translateY(-460px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-scrim, .wb-cloud, .wb-tree, .wb-sun, .wb-flutter { animation: none; }
+  .wb-bubble { animation-duration: 9s !important; }
+}

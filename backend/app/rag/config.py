@@ -4,13 +4,13 @@ Kept apart from app.core.config so the RAG layer, its CLI and its tests run
 without a database or JWT secret.
 
 Every LLM call (tutor chat, quiz, OCR) goes through OpenRouter. Embeddings stay
-local (BGE-M3). Students use LLM_API_KEY (or OPENROUTER_API_KEY); admin-only work
+local (BGE-M3) in dev and come from Amazon Bedrock in production (EMBEDDING_PROVIDER=bedrock). Students use LLM_API_KEY (or OPENROUTER_API_KEY); admin-only work
 (quiz-bank generation, feedback review) uses LLM_API_KEY2.
 """
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Absolute, so the CLI and the API find backend/.env and backend/var from any working directory.
@@ -26,9 +26,15 @@ class RagSettings(BaseSettings):
     vector_db_api_key: str | None = None
     vector_collection: str = "kelu_chunks_v1"   # bump suffix when embedding model changes
 
-    # Embeddings: self-hosted BGE-M3 (Tamil + English in one vector space).
-    embedding_provider: str = "bge-m3"         # bge-m3 | fake
+    # Embeddings (Tamil + English in one vector space): see app/rag/embeddings.py.
+    embedding_provider: str = "bge-m3"         # bge-m3 | bedrock | fake
     embedding_dim: int = 1024
+    # Bedrock: cohere.embed-multilingual-v3 (1024-dim), cohere.embed-v4:0, or amazon.titan-embed-text-v2:0.
+    bedrock_embedding_model: str = "cohere.embed-multilingual-v3"
+    bedrock_region: str | None = Field(None, validation_alias=AliasChoices("BEDROCK_REGION", "S3_REGION", "AWS_REGION"))
+    # The same AWS keys as file storage. Unset = boto3's own lookup (e.g. the EC2 server's IAM role).
+    aws_access_key_id: str | None = Field(None, validation_alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: SecretStr | None = Field(None, validation_alias="AWS_SECRET_ACCESS_KEY")
 
     # Chunking
     chunk_max_chars: int = 1800
@@ -69,6 +75,16 @@ class RagSettings(BaseSettings):
     ocr_model: str = "anthropic/claude-sonnet-5.5"
     ocr_dir: str = str(BACKEND_DIR / "var" / "ocr")   # one .md per page; re-runs skip done pages
     ocr_workers: int = 4
+
+    @model_validator(mode="after")
+    def _collection_per_model(self) -> "RagSettings":
+        """Vectors from different models can't share a collection: the scores would be noise.
+        Switching to Bedrock without naming a collection gets its own, instead of silently
+        mixing with the BGE-M3 one (VECTOR_COLLECTION set by hand always wins)."""
+        if self.embedding_provider == "bedrock" and "vector_collection" not in self.model_fields_set:
+            model = self.bedrock_embedding_model.split(":")[0].replace(".", "_").replace("-", "_")
+            self.vector_collection = f"kelu_chunks_{model}_{self.embedding_dim}"
+        return self
 
 
 @lru_cache

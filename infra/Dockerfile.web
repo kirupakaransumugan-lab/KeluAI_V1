@@ -1,0 +1,15 @@
+# KELU website + HTTPS front door: builds the React app, then serves it with Caddy, which also
+# forwards /api to the backend (infra/Caddyfile). Build context is frontend/:
+#   docker build -f infra/Dockerfile.web -t kelu-web frontend
+# The React app calls /api/v1 on its own origin, so site and API share one address: the
+# SameSite=Lax session cookie and Google sign-in need no CORS.
+
+FROM node:22-alpine AS build
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM caddy:2.10
+COPY --from=build /src/dist /srv

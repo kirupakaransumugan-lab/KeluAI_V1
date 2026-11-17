@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
-import { ApiError, subscriptionApi, type SubscriptionRow, type SubscriptionSummary } from "../../services/api";
+import { ApiError, subscriptionApi, type PlanInfo, type SubscriptionRow, type SubscriptionSummary } from "../../services/api";
 import { fill } from "../../utils/dates";
 import { icons } from "../dashboard/icons";
 import "../../styles/account.css";
 
-// The plan comes from GET /subscription. Online payment isn't connected yet
-// (payments_enabled: false), so the plan cards explain that instead of starting a checkout.
+// The plan comes from GET /subscription. With payments_enabled, "Choose" opens Stripe Checkout;
+// Stripe sends the student back to ?paid=1 or ?cancelled=1. Coming back proves nothing: the
+// plan starts only when Stripe's webhook reaches the backend, so ?paid=1 re-checks a few times.
 
 const LIVE = ["trialing", "active"];
+const PAID_POLL_MS = 3000;
+const PAID_POLLS = 10;
 
 export function SubscriptionPage() {
   const { lang, t } = useLanguage();
@@ -17,6 +20,10 @@ export function SubscriptionPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<SubscriptionSummary>();
   const [failed, setFailed] = useState(false);
+  const [params] = useSearchParams();
+  const returned = params.get("paid") === "1" ? "paid" : params.get("cancelled") === "1" ? "cancelled" : null;
+  const [paying, setPaying] = useState<string | null>(null);
+  const [payFailed, setPayFailed] = useState(false);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -26,6 +33,30 @@ export function SubscriptionPage() {
     });
   }, [navigate]);
   useEffect(() => { load(); }, [load]);
+
+  // Back from Stripe after paying: refresh until the webhook's paid plan shows up.
+  const paidPlanShown = !!data?.current && data.current.plan !== "trial" && LIVE.includes(data.current.status);
+  useEffect(() => {
+    if (returned !== "paid" || paidPlanShown) return;
+    let polls = 0;
+    const id = window.setInterval(() => {
+      if (++polls > PAID_POLLS) window.clearInterval(id);
+      else subscriptionApi.get().then(setData, () => {});
+    }, PAID_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [returned, paidPlanShown]);
+
+  const choose = async (key: PlanInfo["key"]) => {
+    setPaying(key);
+    setPayFailed(false);
+    try {
+      const { url } = await subscriptionApi.checkout(key);
+      window.location.assign(url);                 // Stripe's hosted payment page
+    } catch {
+      setPaying(null);
+      setPayFailed(true);
+    }
+  };
 
   const date = (iso: string) => new Date(iso).toLocaleDateString(lang === "ta" ? "ta-LK" : "en-GB",
     { day: "numeric", month: "short", year: "numeric" });
@@ -74,6 +105,9 @@ export function SubscriptionPage() {
           </div>
           <a href="/#pricing" className="db-btn-outline db-btn-sm">{s.comparePlans}</a>
         </div>
+        {returned === "paid" && <p className="ac-banner ok" role="status">{icons.check}<span>{s.paidText}</span></p>}
+        {returned === "cancelled" && <p className="ac-banner" role="status">{icons.clock}<span>{s.cancelledText}</span></p>}
+        {payFailed && <p className="ac-banner" role="alert">{icons.clock}<span>{s.payFailed}</span></p>}
         {!data.payments_enabled && (
           <p className="ac-banner" role="note">{icons.clock}<span><strong>{s.soon}.</strong> {s.soonText}</span></p>
         )}
@@ -91,10 +125,13 @@ export function SubscriptionPage() {
                 <p className="ac-blurb">{lang === "ta" ? p.blurb_ta : p.blurb_en}</p>
                 {mine ? (
                   <span className="ac-pill on">{s.yourPlan}</span>
-                ) : p.billing === "free" ? null : (
-                  <button type="button" className="db-btn-primary ac-choose" disabled={!data.payments_enabled}
-                    title={data.payments_enabled ? undefined : s.soon}>
-                    {data.payments_enabled ? fill(s.choose, { plan: planName(p.key) }) : s.soon}
+                ) : p.billing === "free" ? null : !data.self_serve_billing.includes(p.billing) ? (
+                  <p className="ac-muted">{s.askUs}</p>
+                ) : (
+                  <button type="button" className="db-btn-primary ac-choose"
+                    disabled={!data.payments_enabled || paying !== null}
+                    title={data.payments_enabled ? undefined : s.soon} onClick={() => choose(p.key)}>
+                    {!data.payments_enabled ? s.soon : paying === p.key ? s.paying : fill(s.choose, { plan: planName(p.key) })}
                   </button>
                 )}
               </article>

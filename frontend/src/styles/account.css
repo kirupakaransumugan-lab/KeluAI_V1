@@ -47,6 +47,8 @@
   background: var(--s-fff6e8); border: 1px solid var(--s-fdf0d9); color: var(--ink); font-size: 14.5px; line-height: 1.45;
 }
 .ac-banner svg { flex: none; width: 20px; height: 20px; color: var(--t-8a5300); margin-top: 1px; }
+.ac-banner.ok { background: var(--s-e3f6e8); border-color: var(--s-e3f6e8); }
+.ac-banner.ok svg { color: var(--t-1f8a46); }
 .ac-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
 .ac-plan { display: flex; flex-direction: column; gap: 10px; }
 .ac-plan.best { border: 2px solid var(--amber); }

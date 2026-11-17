@@ -14,11 +14,10 @@ KB = "/api/v1/admin/knowledge-base"
 
 
 @pytest.fixture
-def library(client, tmp_path, monkeypatch):
+def library(client, monkeypatch):
     embedder = FakeEmbedder(dim=64)
     store = VectorStore.from_url(":memory:", None, "test_kb", embedder.dim)
     store.ensure_collection()
-    monkeypatch.setattr(kb, "UPLOAD_DIR", tmp_path)
     monkeypatch.setattr(kb, "_jobs", {})
     app.dependency_overrides[admin_library.get_kb_store] = lambda: (lambda: store)
     app.dependency_overrides[admin_library.get_kb_embedder] = lambda: (lambda: embedder)

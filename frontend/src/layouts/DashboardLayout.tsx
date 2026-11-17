@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
 import { WelcomeModal, takeWelcome } from "../features/onboarding/WelcomeModal";
+import { EyeBreak } from "../features/wellbeing/EyeBreak";
 import { useNavTips, type TipKey } from "../features/onboarding/NavTips";
 import { useLanguage } from "../app/providers";
 import { setSession } from "../app/session";
@@ -37,6 +38,8 @@ export function DashboardLayout() {
   const d = t.dashboard;
   const navigate = useNavigate();
   const autoHide = !!useMatch("/dashboard/tutor/*");
+  // The 20-minute eye break counts study time on Practice and the tutor only.
+  const onPractice = !!useMatch("/dashboard/practice/*");
   const [user, setUser] = useState<User>();
   const [welcome, setWelcome] = useState(false);         // the after-login welcome card
   const [menuOpen, setMenuOpen] = useState(false);       // mobile sidebar
@@ -171,6 +174,7 @@ export function DashboardLayout() {
         )}>
           <Outlet context={{ user, setUser } satisfies DashboardContext} />
           {welcome && <WelcomeModal user={user} onClose={() => setWelcome(false)} />}
+          <EyeBreak enabled={autoHide || onPractice} />
         </ErrorBoundary>
       </div>
     </div>

@@ -25,6 +25,7 @@ export interface PracticeSet {
   failed: number;              // slots the AI could not write, even after its retry
   submittedAt: number | null;  // "Finish quiz" pressed: answers are locked and the results shown
   recorded: boolean;           // the server has this set's answers (or there were none to send)
+  timedOut?: boolean;          // the whole-syllabus quiz was finished by its 50-minute clock
 }
 
 /** Saved before saving moved to the server: read once, uploaded, then cleared. */
@@ -156,6 +157,15 @@ export function emptySet(lang: Medium, topic: string): PracticeSet {
     recorded: false,
   };
 }
+
+/** The whole-syllabus quiz is timed like an exam: 50 minutes from the moment it starts. The
+ *  clock is the set's own createdAt, so closing the overlay, leaving the page or reloading
+ *  never pauses or resets it. */
+export const FULL_QUIZ_MS = 50 * 60 * 1000;
+export const fullDeadline = (set: PracticeSet) => set.createdAt + FULL_QUIZ_MS;
+/** Milliseconds left on a timed quiz (0 once time is up); null for a subject quiz, which is untimed. */
+export const timeLeft = (set: PracticeSet, now: number) =>
+  set.full ? Math.max(0, fullDeadline(set) - now) : null;
 
 /** The whole-syllabus quiz: complete from the start, as its questions are stored. */
 export function fullSet(lang: Medium, questions: QuizQuestion[]): PracticeSet {

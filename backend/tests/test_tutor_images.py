@@ -64,7 +64,7 @@ class RecordingAgent:
 @pytest.fixture
 def agent(client):
     rec = RecordingAgent()
-    app.dependency_overrides[get_current_user] = lambda: NS(id=5, role=Role.student)
+    app.dependency_overrides[get_current_user] = lambda: NS(id=5, role=Role.student, subscriptions=[])
     app.dependency_overrides[tutor.get_agent] = lambda: rec
     yield rec
 

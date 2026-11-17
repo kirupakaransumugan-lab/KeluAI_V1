@@ -1,0 +1,40 @@
+# KELU on one address: the React site, plus /api and /health forwarded to the backend.
+# Caddy gets and renews a free Let's Encrypt certificate for SITE_HOST.
+# With no domain of your own, SITE_HOST can be <your-elastic-ip-with-dashes>.sslip.io
+# (e.g. 3-104-12-34.sslip.io), which always points at that IP.
+{$SITE_HOST} {
+	encode zstd gzip
+
+	request_body {
+		max_size 70MB    # knowledge-base PDFs are up to 60 MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle /health {
+		reverse_proxy backend:8000
+	}
+
+	# Vite puts a content hash in every asset name, so they can be cached for a year.
+	handle /assets/* {
+		root * /srv
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Everything else is the single-page app: unknown paths (/login, /practice...) get index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		header /index.html Cache-Control "no-cache"
+		file_server
+	}
+}

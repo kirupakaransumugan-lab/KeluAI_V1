@@ -91,6 +91,11 @@ export interface DashboardCopy {
   reload: string;
   tutor: TutorCopy;
   practice: PracticeCopy;
+  /** The 20-minute eye-and-mind break. "{n}" is bubbles popped. */
+  wellbeing: {
+    title: string; text: string; scene: string; game: string; sceneTitle: string; sceneText: string;
+    gameTitle: string; gameText: string; gameScore: string; doneTitle: string; doneText: string; back: string;
+  };
   pastPapers: PastPapersCopy;
   progress: ProgressCopy;
   subscription: SubscriptionCopy;
@@ -110,6 +115,7 @@ export interface SubscriptionCopy {
   upgradeTitle: string; upgradeText: string;
   bestValue: string;
   choose: string; soon: string; soonText: string; comparePlans: string;
+  paying: string; payFailed: string; paidText: string; cancelledText: string; askUs: string;
   history: string; colPlan: string; colStatus: string; colFrom: string; colTo: string;
   loading: string; loadFailed: string; retry: string;
 }
@@ -314,6 +320,10 @@ export interface PracticeCopy {
   fullLocked: string;
   fullSoon: string;
   newFullQuiz: string;
+  timeUp: string;
+  timeLeftLabel: string;
+  timerNote: string;
+  timeLeftShort: string;       // {time}
   mine: { title: string; quizzes: string; history: string; again: string };
   running: {
     title: string; writing: string; writingShort: string; ready: string; answering: string; done: string;
@@ -334,7 +344,9 @@ export interface PracticeCopy {
     photoLabel: string; photoNote: string; send: string; cancel: string; thanks: string;
     errors: { tooLarge: string; badImage: string; tooMany: string; failed: string };
   };
-  errors: { tooMany: string; noFullQuiz: string; fullLocked: string; notIndexed: string; notConfigured: string; failed: string; network: string };
+  errors: { tooMany: string; dailyLimit: string; noFullQuiz: string; fullLocked: string; notIndexed: string; notConfigured: string; failed: string; network: string };
+  /** Free plan: "{left}" quizzes of "{max}" left today. */
+  quizzesLeft: string;
 }
 
 /** AI tutor chat. "{n}" / "{max}" are numbers. */
@@ -1156,6 +1168,9 @@ const en: Copy = {
       bestValue: "Best value",
       choose: "Choose {plan}", soon: "Online payment coming soon",
       soonText: "Payments in LKR are being set up. Your trial keeps working until then.", comparePlans: "Compare all plans",
+      paying: "Opening secure payment...", payFailed: "Couldn't start the payment. Please try again.",
+      paidText: "Payment received, thank you! Your plan will show here within a minute.",
+      cancelledText: "Payment cancelled. You have not been charged.", askUs: "Contact us to set this up",
       history: "Plan history", colPlan: "Plan", colStatus: "Status", colFrom: "From", colTo: "To",
       loading: "Loading your plan...", loadFailed: "Couldn't load your plan.", retry: "Retry",
     },
@@ -1187,6 +1202,20 @@ const en: Copy = {
         mismatch: "The passwords don't match.", wrongPassword: "That password isn't right.", currentRequired: "Enter your current password.",
         confirmMismatch: "That email doesn't match your account.", failed: "Something went wrong. Please try again.",
       },
+    },
+    wellbeing: {
+      title: "Time for a short break",
+      text: "You've been studying for 20 minutes. Rest your eyes and mind for a moment, then carry on.",
+      scene: "Watch a green scene",
+      game: "Play a quick game",
+      sceneTitle: "Look into the distance",
+      sceneText: "Relax your shoulders and look at the trees far away. Breathe slowly in and out.",
+      gameTitle: "Pop the bubbles",
+      gameText: "Tap the bubbles as they float up. Popped: {n}",
+      gameScore: "Nice! You popped {n} bubbles.",
+      doneTitle: "Feeling fresh?",
+      doneText: "Well done. Your eyes have had a rest.",
+      back: "Back to study",
     },
     practice: {
       title: "Practice",
@@ -1263,10 +1292,14 @@ const en: Copy = {
       },
       practiceTopic: "Practise this topic",
       fullTitle: "Full syllabus quiz",
-      fullText: "{n} questions across the whole syllabus: {pure} Pure and {applied} Applied. Ready straight away.",
+      fullText: "{n} questions across the whole syllabus: {pure} Pure and {applied} Applied. You get 50 minutes once you start.",
       fullLocked: "This opens in your exam year, once you've covered the whole syllabus.",
       fullSoon: "Questions for this quiz are being prepared. Please check back soon.",
       newFullQuiz: "New full syllabus quiz",
+      timeUp: "Time's up! Your 50 minutes are over, so the quiz was finished for you. Here are your marks and every answer.",
+      timeLeftLabel: "Time left",
+      timerNote: "You have 50 minutes. The clock keeps running if you close this window.",
+      timeLeftShort: "{time} left",
       mine: { title: "Your topics", quizzes: "Quizzes taken: {n}", history: "Recent quizzes", again: "New quiz" },
       running: {
         title: "Your quizzes",
@@ -1284,6 +1317,7 @@ const en: Copy = {
       levelOf: "Level {n} of 5",
       subjectTitle: "Choose a subject",
       subjectText: "Click a topic to start. Its 5 questions, from easy to hard, are written while you keep browsing; open it when it says ready.",
+      quizzesLeft: "{left} of {max} free quizzes left today",
       subjectScore: "Your score: {pct}%",
       notTried: "Not tried yet",
       loadingTopics: "Loading subjects…",
@@ -1308,6 +1342,7 @@ const en: Copy = {
       },
       errors: {
         tooMany: "Up to {n} quizzes can be written at once. Open one that's ready, or wait a moment.",
+        dailyLimit: "You've used today's {max} free quizzes. Come back tomorrow!",
         noFullQuiz: "Questions for this quiz aren't ready yet. Please check back soon.",
         fullLocked: "The full syllabus quiz opens in your exam year.",
         notIndexed: "Past papers haven't been loaded yet, so KELU can't write questions. Please try again later.",
@@ -1890,6 +1925,9 @@ const ta: Copy = {
       bestValue: "சிறந்த மதிப்பு",
       choose: "{plan} தெரிவுசெய்", soon: "இணையவழிக் கட்டணம் விரைவில்",
       soonText: "LKR கட்டண வசதி அமைக்கப்படுகிறது. அதுவரை உங்கள் சோதனைக் காலம் தொடரும்.", comparePlans: "எல்லாத் திட்டங்களையும் ஒப்பிடு",
+      paying: "பாதுகாப்பான கட்டணப் பக்கம் திறக்கிறது...", payFailed: "கட்டணத்தைத் தொடங்க முடியவில்லை. மீண்டும் முயலுங்கள்.",
+      paidText: "கட்டணம் கிடைத்தது, நன்றி! உங்கள் திட்டம் ஒரு நிமிடத்துக்குள் இங்கே தோன்றும்.",
+      cancelledText: "கட்டணம் இரத்துச் செய்யப்பட்டது. உங்களிடம் பணம் அறவிடப்படவில்லை.", askUs: "இதை அமைக்க எம்மைத் தொடர்புகொள்ளுங்கள்",
       history: "திட்ட வரலாறு", colPlan: "திட்டம்", colStatus: "நிலை", colFrom: "தொடக்கம்", colTo: "முடிவு",
       loading: "உங்கள் திட்டத்தை ஏற்றுகிறது...", loadFailed: "உங்கள் திட்டத்தை ஏற்ற முடியவில்லை.", retry: "மீண்டும் முயல்",
     },
@@ -1921,6 +1959,20 @@ const ta: Copy = {
         mismatch: "கடவுச்சொற்கள் பொருந்தவில்லை.", wrongPassword: "கடவுச்சொல் சரியில்லை.", currentRequired: "தற்போதைய கடவுச்சொல்லை உள்ளிடுங்கள்.",
         confirmMismatch: "மின்னஞ்சல் உங்கள் கணக்குடன் பொருந்தவில்லை.", failed: "ஏதோ தவறு நடந்தது. மீண்டும் முயலுங்கள்.",
       },
+    },
+    wellbeing: {
+      title: "சிறு ஓய்வுக்கான நேரம்",
+      text: "நீங்கள் 20 நிமிடங்களாகப் படிக்கிறீர்கள். கண்களுக்கும் மனதுக்கும் சற்று ஓய்வு கொடுத்து, பின் தொடருங்கள்.",
+      scene: "பசுமைக் காட்சியைப் பாருங்கள்",
+      game: "சிறு விளையாட்டு",
+      sceneTitle: "தொலைவில் பாருங்கள்",
+      sceneText: "தோள்களைத் தளர்த்தி, தொலைவில் உள்ள மரங்களைப் பாருங்கள். மெதுவாக மூச்சை இழுத்து விடுங்கள்.",
+      gameTitle: "குமிழிகளை உடையுங்கள்",
+      gameText: "மேலே மிதக்கும் குமிழிகளைத் தொடுங்கள். உடைத்தவை: {n}",
+      gameScore: "அருமை! நீங்கள் {n} குமிழிகளை உடைத்தீர்கள்.",
+      doneTitle: "புத்துணர்ச்சியாக இருக்கிறதா?",
+      doneText: "நன்று. உங்கள் கண்கள் ஓய்வெடுத்தன.",
+      back: "படிப்புக்குத் திரும்பு",
     },
     practice: {
       title: "பயிற்சி",
@@ -1997,10 +2049,14 @@ const ta: Copy = {
       },
       practiceTopic: "இந்தத் தலைப்பைப் பயிற்சி செய்",
       fullTitle: "முழுப் பாடத்திட்ட வினாடி வினா",
-      fullText: "முழுப் பாடத்திட்டத்திலிருந்து {n} வினாக்கள்: தூய கணிதம் {pure}, பிரயோக கணிதம் {applied}. உடனே தொடங்கலாம்.",
+      fullText: "முழுப் பாடத்திட்டத்திலிருந்து {n} வினாக்கள்: தூய கணிதம் {pure}, பிரயோக கணிதம் {applied}. தொடங்கியதும் 50 நிமிடங்கள் உண்டு.",
       fullLocked: "முழுப் பாடத்திட்டத்தையும் முடித்த பின், உங்கள் பரீட்சை ஆண்டில் இது திறக்கும்.",
       fullSoon: "இந்த வினாடி வினாவுக்கான வினாக்கள் தயாராகின்றன. பின்னர் பாருங்கள்.",
       newFullQuiz: "புதிய முழுப் பாடத்திட்ட வினாடி வினா",
+      timeUp: "நேரம் முடிந்தது! உங்கள் 50 நிமிடங்கள் முடிந்ததால் வினாடி வினா முடிக்கப்பட்டது. உங்கள் புள்ளிகளும் எல்லா விடைகளும் இதோ.",
+      timeLeftLabel: "மீதமுள்ள நேரம்",
+      timerNote: "உங்களுக்கு 50 நிமிடங்கள் உள்ளன. இந்த சாளரத்தை மூடினாலும் நேரம் ஓடிக்கொண்டே இருக்கும்.",
+      timeLeftShort: "{time} மீதம்",
       mine: { title: "உங்கள் தலைப்புகள்", quizzes: "செய்த வினாடி வினாக்கள்: {n}", history: "அண்மைய வினாடி வினாக்கள்", again: "புதிய வினாடி வினா" },
       running: {
         title: "உங்கள் வினாடி வினாக்கள்",
@@ -2018,6 +2074,7 @@ const ta: Copy = {
       levelOf: "நிலை {n} / 5",
       subjectTitle: "ஒரு பாடத்தைத் தெரிவுசெய்க",
       subjectText: "தொடங்க ஒரு தலைப்பைக் கிளிக் செய்யுங்கள். எளிதானதிலிருந்து கடினமானது வரையான 5 வினாக்களும் நீங்கள் மற்றவற்றைப் பார்க்கும்போதே எழுதப்படும்; தயாரானதும் திறவுங்கள்.",
+      quizzesLeft: "இன்று {max} இலவச வினாடி வினாக்களில் {left} மீதமுள்ளன",
       subjectScore: "உங்கள் பெறுபேறு: {pct}%",
       notTried: "இன்னும் முயற்சிக்கவில்லை",
       loadingTopics: "பாடங்கள் ஏற்றப்படுகின்றன…",
@@ -2042,6 +2099,7 @@ const ta: Copy = {
       },
       errors: {
         tooMany: "ஒரே நேரத்தில் {n} வினாடி வினாக்கள் வரை எழுதப்படலாம். தயாரான ஒன்றைத் திறக்கவும், அல்லது சற்றுப் பொறுக்கவும்.",
+        dailyLimit: "இன்றைய {max} இலவச வினாடி வினாக்களையும் பயன்படுத்திவிட்டீர்கள். நாளை மீண்டும் வாருங்கள்!",
         noFullQuiz: "இந்த வினாடி வினாவுக்கான வினாக்கள் இன்னும் தயாராகவில்லை. பின்னர் பாருங்கள்.",
         fullLocked: "முழுப் பாடத்திட்ட வினாடி வினா உங்கள் பரீட்சை ஆண்டில் திறக்கும்.",
         notIndexed: "கடந்தகால வினாத்தாள்கள் இன்னும் ஏற்றப்படவில்லை, எனவே KELU வினாக்களை எழுத முடியாது. பின்னர் முயலுங்கள்.",

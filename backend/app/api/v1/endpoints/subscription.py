@@ -1,4 +1,4 @@
-"""The student's plan, trial days left and plan history (read only until payments are connected)."""
+"""The student's plan, trial days left and plan history."""
 from fastapi import APIRouter, Depends
 
 from app.core.dependencies import get_current_user

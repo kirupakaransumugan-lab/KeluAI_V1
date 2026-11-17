@@ -13,6 +13,7 @@ assumes one API worker, which is how the backend runs today.
 from __future__ import annotations
 
 import logging
+import tempfile
 import threading
 import uuid
 from datetime import datetime
@@ -26,13 +27,14 @@ from sqlalchemy.orm import Session
 from app.core.clock import utcnow
 from app.models.topic import SyllabusTopic
 from app.rag.cli import ADMIN_USER_ID, text_upload_id, upload_id_for
-from app.rag.config import BACKEND_DIR, get_rag_settings
+from app.rag.config import get_rag_settings
 from app.rag.embeddings import Embedder
 from app.rag.filenames import FilenameError, parse_kb_filename
 from app.rag.ingestion import NotIndexable, index_upload
 from app.rag.ocr import extract_text_pages, load_pages, ocr_pdf, openrouter_transcriber
 from app.rag.types import UploadRecord
 from app.rag.vector_store import VectorStore
+from app.services import file_storage
 from app.services.past_papers import _summarise
 from app.services.topic_tags import tag_chunks
 
@@ -43,7 +45,8 @@ TYPE_ORDER = {"past_paper": 0, "marking_scheme": 1, "syllabus": 2}
 FIELDS = ["upload_id", "upload_type", "language", "title", "exam_year", "page", "paper", "paper_part",
           "question_number"]
 MAX_BYTES = 60 * 1024 * 1024
-UPLOAD_DIR = BACKEND_DIR / "var" / "kb"
+UPLOAD_PREFIX = "kb/"          # the uploaded file, kept so it can be re-indexed later
+OCR_PREFIX = "ocr/"            # one page-NNN.md per page; re-uploads reuse them instead of paying for OCR again
 JOBS_KEPT = 20
 
 
@@ -129,8 +132,8 @@ def busy() -> bool:
 
 # ---------------------------------------------------------------- adding a document
 
-def prepare_upload(filename: str, data: bytes, language: str) -> tuple[dict, Path, dict]:
-    """Check the file and save it under var/kb. Returns (job, saved path, document info)."""
+def prepare_upload(filename: str, data: bytes, language: str) -> tuple[dict, str, dict]:
+    """Check the file and store it under kb/. Returns (job, storage key, document info)."""
     name = Path(filename).name.strip()
     suffix = Path(name).suffix.lower()
     if not data:
@@ -147,7 +150,7 @@ def prepare_upload(filename: str, data: bytes, language: str) -> tuple[dict, Pat
         info = {"kind": "pdf", "upload_id": upload_id_for(parsed), "upload_type": parsed.upload_type,
                 "language": parsed.language, "title": parsed.title, "exam_year": parsed.exam_year,
                 "paper_coverage": parsed.paper_coverage, "stem": Path(parsed.canonical_name).stem}
-        saved = UPLOAD_DIR / parsed.canonical_name
+        saved = UPLOAD_PREFIX + parsed.canonical_name
     elif suffix in (".txt", ".md"):
         try:
             data.decode("utf-8-sig")
@@ -155,19 +158,51 @@ def prepare_upload(filename: str, data: bytes, language: str) -> tuple[dict, Pat
             raise KbError("bad_encoding", "Text files must be saved as UTF-8.") from None
         info = {"kind": "text", "upload_id": text_upload_id(Path(name)), "upload_type": "syllabus",
                 "language": language, "title": Path(name).stem, "exam_year": None}
-        saved = UPLOAD_DIR / name
+        saved = UPLOAD_PREFIX + name
     else:
         raise KbError("bad_type", "Upload a PDF past paper / marking scheme, or a .txt / .md document.")
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    saved.write_bytes(data)
+    file_storage.get_storage().put(saved, data, "application/pdf" if info["kind"] == "pdf" else "text/plain; charset=utf-8")
     job = _new_job("upload", name)
     _set(job["id"], upload_id=info["upload_id"])
     return job, saved, info
 
 
-def _pages_for(job_id: str, path: Path, info: dict) -> list[str]:
+def _pull_pages(prefix: str, out_dir: Path) -> None:
+    """Copy pages already read in an earlier run from storage into the job's work folder."""
+    storage = file_storage.get_storage()
+    for key in storage.list(prefix):
+        data = storage.get(key)
+        if data is not None:
+            (out_dir / key.rsplit("/", 1)[-1]).write_bytes(data)
+
+
+def _push_pages(prefix: str, out_dir: Path) -> None:
+    storage = file_storage.get_storage()
+    done = set(storage.list(prefix))
+    for page in sorted(out_dir.glob("page-*.md")):
+        if prefix + page.name not in done:
+            storage.put(prefix + page.name, page.read_bytes(), "text/markdown; charset=utf-8")
+
+
+def _pages_for(job_id: str, data: bytes, info: dict) -> list[str]:
+    """The PDF's text, one string per page. The OCR code works on a folder, so it runs in a temp
+    folder that is filled from storage first and copied back after, even when OCR fails half
+    way: the pages already paid for are kept for the next try."""
+    prefix = f"{OCR_PREFIX}{info['stem']}/"
+    with tempfile.TemporaryDirectory(prefix="kelu-kb-") as tmp:
+        work = Path(tmp)
+        path, out_dir = work / "upload.pdf", work / "pages"
+        out_dir.mkdir()
+        path.write_bytes(data)
+        _pull_pages(prefix, out_dir)
+        try:
+            return _read_pdf(job_id, path, out_dir)
+        finally:
+            _push_pages(prefix, out_dir)
+
+
+def _read_pdf(job_id: str, path: Path, out_dir: Path) -> list[str]:
     s = get_rag_settings()
-    out_dir = Path(s.ocr_dir) / info["stem"]
     pages = load_pages(out_dir)
     if pages:
         return pages                                       # read before (re-upload): reuse the text
@@ -184,15 +219,18 @@ def _pages_for(job_id: str, path: Path, info: dict) -> list[str]:
     return load_pages(out_dir) or []
 
 
-def run_upload(job_id: str, path: Path, info: dict, get_store: Callable[[], VectorStore],
+def run_upload(job_id: str, key: str, info: dict, get_store: Callable[[], VectorStore],
                get_embedder: Callable[[], Embedder], session_factory: Callable[[], Session]) -> None:
     _set(job_id, status="running")
     try:
+        data = file_storage.get_storage().get(key)
+        if data is None:
+            raise KbError("file_missing", "The uploaded file could not be found in storage. Upload it again.")
         if info["kind"] == "pdf":
-            pages = _pages_for(job_id, path, info)
+            pages = _pages_for(job_id, data, info)
             text = "\f".join(pages)
         else:
-            text = path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+            text = data.decode("utf-8-sig").replace("\r\n", "\n")
             pages = text.split("\f") if "\f" in text else None
         if not text.strip():
             raise KbError("no_text", "No text could be read from this file.")

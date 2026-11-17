@@ -10,7 +10,7 @@ const scoreBand = (pct: number) => (pct >= 75 ? "good" : pct >= 40 ? "mid" : "lo
 
 /** Every topic, always in view: clicking one starts its quiz in the background (or opens the one
  *  already under way), and each tile shows how that quiz is coming along. */
-export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusText, starting, error, onPick, onNewQuiz, onStartFull }: {
+export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusText, starting, error, quota, onPick, onNewQuiz, onStartFull }: {
   subjects: PracticeSubject[] | undefined;
   fullQuiz: FullQuizInfo | undefined;
   fullState: QuizState | null;
@@ -18,6 +18,7 @@ export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusTex
   statusText: (state: QuizState) => string;
   starting: boolean;
   error: string | null;
+  quota: string | null;                   // "7 of 10 free quizzes left today"; null for paid students
   onPick: (key: string) => void;          // open the topic's quiz, or start one
   onNewQuiz: (key: string) => void;       // always a new quiz
   onStartFull: () => void;
@@ -92,6 +93,7 @@ export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusTex
       <div>
         <h2 className="pr-choose-title">{p.subjectTitle}</h2>
         <p className="pr-muted">{p.subjectText}</p>
+        {quota && <p className="pr-quota">{icons.sparkle}{quota}</p>}
       </div>
       {error && <p className="pr-error" role="alert">{error}</p>}
       {subjects ? (
