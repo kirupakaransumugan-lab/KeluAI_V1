@@ -98,6 +98,7 @@ class UserOut(BaseModel):
     mobile: str
     parent_email: str | None
     has_password: bool             # False: a Google-only account, which can set a first password
+    email_verified: bool           # False: only the verify-email screen works until they enter the code
 
 
 class LoginRequest(BaseModel):
@@ -135,6 +136,10 @@ class VerifyResetCodeRequest(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
 
     _lower_email = field_validator("email")(_lower)
+
+
+class VerifyEmailRequest(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")
 
 
 class VerifyResetCodeResponse(BaseModel):

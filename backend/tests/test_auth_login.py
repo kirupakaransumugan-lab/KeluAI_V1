@@ -3,7 +3,21 @@ from app.schemas.auth import allowed_exam_years
 LOGIN = "/api/v1/auth/login"
 
 
-def register(client, email="kavin@example.com", password="s3cure-pass"):
+def verify_in_db(email):
+    """Stands in for the student typing the emailed code (tests/test_email_verification.py
+    covers the real code path)."""
+    from app.core.clock import utcnow
+    from app.core.database import get_db
+    from app.main import app
+    from app.repositories import user_repository
+
+    db = next(app.dependency_overrides[get_db]())
+    user = user_repository.get_by_email(db, email.lower())
+    user.email_verified_at = utcnow()
+    db.commit()
+
+
+def register(client, email="kavin@example.com", password="s3cure-pass", verified=True):
     resp = client.post(
         "/api/v1/auth/register",
         json={
@@ -17,6 +31,8 @@ def register(client, email="kavin@example.com", password="s3cure-pass"):
         },
     )
     assert resp.status_code == 201
+    if verified:
+        verify_in_db(email)
     client.cookies.clear()  # start logged out, like a fresh browser
 
 

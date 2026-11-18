@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.dependencies import ACCESS_COOKIE, get_current_user
+from app.core.dependencies import ACCESS_COOKIE, get_current_user, get_signed_in_user
 from app.core.google_auth import GoogleTokenError, verify_google_id_token
 from app.core.microsoft_auth import MicrosoftEmailUnverified, MicrosoftTokenError, verify_microsoft_id_token
 from app.core.social_identity import SocialIdentity
@@ -21,10 +21,11 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     UpdateProfileRequest,
     UserOut,
+    VerifyEmailRequest,
     VerifyResetCodeRequest,
     VerifyResetCodeResponse,
 )
-from app.services import auth_service, email_service, password_reset_service
+from app.services import auth_service, email_service, email_verification_service, password_reset_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -44,14 +45,27 @@ def _set_session_cookie(response: Response, user: User) -> None:
     )
 
 
+def _send_verification_code(db: Session, user: User, background: BackgroundTasks) -> None:
+    """Email a sign-up code if one may be sent now (quietly skipped when the last one is too recent)."""
+    try:
+        code = email_verification_service.issue_code(db, user)
+    except email_verification_service.ResendRefused:
+        return
+    subject, body = email_verification_service.verification_email(user, code)
+    background.add_task(email_service.send_email, user.email, subject, body)
+
+
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def register(data: RegisterRequest, response: Response, background: BackgroundTasks,
+             db: Session = Depends(get_db)) -> AuthResponse:
     try:
         user = auth_service.register_student(db, data)
     except auth_service.EmailTakenError:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail={"code": "email_taken", "field": "email"}
         ) from None
+    # Signed in, but only the verify-email screen works until they type the emailed code.
+    _send_verification_code(db, user, background)
     _set_session_cookie(response, user)
     return AuthResponse(user=auth_service.to_user_out(user))
 
@@ -63,15 +77,44 @@ def _refuse_disabled(user) -> None:
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(data: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
+def login(data: LoginRequest, response: Response, background: BackgroundTasks,
+          db: Session = Depends(get_db)) -> AuthResponse:
     user = auth_service.authenticate(db, data.email, data.password)
     if user is None:
         # Same answer for "no such email" and "wrong password", so it can't be used
         # to discover which emails have accounts.
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "invalid_credentials"})
     _refuse_disabled(user)
+    if user.email_verified_at is None:
+        # Back before verifying (closed the tab, code expired): have a fresh code waiting.
+        _send_verification_code(db, user, background)
     _set_session_cookie(response, user)
     return AuthResponse(user=auth_service.to_user_out(user))
+
+
+@router.post("/email/verify", response_model=AuthResponse)
+def verify_email(data: VerifyEmailRequest, user: User = Depends(get_signed_in_user),
+                 db: Session = Depends(get_db)) -> AuthResponse:
+    try:
+        email_verification_service.verify(db, user, data.code)
+    except email_verification_service.InvalidCodeError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "invalid_code", "field": "code"}) from None
+    return AuthResponse(user=auth_service.to_user_out(user))
+
+
+@router.post("/email/resend", status_code=status.HTTP_202_ACCEPTED)
+def resend_verification(background: BackgroundTasks, user: User = Depends(get_signed_in_user),
+                        db: Session = Depends(get_db)) -> dict:
+    if user.email_verified_at is not None:
+        return {"status": "already_verified"}
+    try:
+        code = email_verification_service.issue_code(db, user)
+    except email_verification_service.ResendRefused as wait:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail={"code": "resend_too_soon", "retry_after": wait.retry_after}) from None
+    subject, body = email_verification_service.verification_email(user, code)
+    background.add_task(email_service.send_email, user.email, subject, body)
+    return {"status": "sent"}
 
 
 @router.get("/providers", response_model=ProvidersOut)
@@ -167,14 +210,15 @@ def session(db: Session = Depends(get_db),
     Unlike /me this never answers 401: a visitor who isn't signed in is normal there, not an
     error. Any reason /me would refuse (no cookie, expired, switched off) means "not signed in"."""
     try:
-        user = get_current_user(db=db, token=token)
+        user = get_signed_in_user(db=db, token=token)
     except HTTPException:
         return {"user": None}
     return {"user": auth_service.to_user_out(user).model_dump(mode="json")}
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)) -> UserOut:
+def me(user: User = Depends(get_signed_in_user)) -> UserOut:
+    # Works before verifying too: the frontend reads email_verified to show the verify screen.
     return auth_service.to_user_out(user)
 
 
@@ -198,7 +242,7 @@ def change_password(data: ChangePasswordRequest, response: Response, user: User 
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
-def delete_me(data: DeleteAccountRequest, response: Response, user: User = Depends(get_current_user),
+def delete_me(data: DeleteAccountRequest, response: Response, user: User = Depends(get_signed_in_user),
               db: Session = Depends(get_db)) -> None:
     try:
         auth_service.delete_account(db, user, data.confirm_email, data.password)

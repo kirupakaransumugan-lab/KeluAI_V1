@@ -45,6 +45,9 @@ class User(Base):
     microsoft_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     # Session tokens issued before this moment are rejected (set on password reset).
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # When the student proved they own the email (a code, a password reset, or Google/Microsoft).
+    # None = not yet: every API call except the verify screen's answers 403 email_unverified.
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     role: Mapped[Role] = mapped_column(_enum(Role, "user_role"), default=Role.student)
     # An admin can switch an account off (Admin > Students). Off: no log-in, and every
     # existing session stops working at its next request (get_current_user).

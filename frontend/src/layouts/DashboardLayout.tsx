@@ -50,8 +50,10 @@ export function DashboardLayout() {
   useEffect(() => {
     authApi.me().then((u) => {
       setSession(u);                     // so the landing page shows this account at once
+      // Signed up but never typed the emailed code: nothing here works until they do.
+      if (!u.email_verified) navigate("/verify-email", { replace: true });
       // Admins have no student profile; their home is the admin area.
-      if (u.role === "admin") navigate("/admin", { replace: true });
+      else if (u.role === "admin") navigate("/admin", { replace: true });
       else {
         setUser(u);
         // Only ever switch it on: StrictMode runs this twice, and the card clears the login flag

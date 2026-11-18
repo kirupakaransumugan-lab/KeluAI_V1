@@ -39,7 +39,8 @@ export function AdminLayout() {
   useEffect(() => {
     authApi.me().then((u) => {
       setSession(u);
-      if (u.role !== "admin") navigate("/dashboard", { replace: true });
+      if (!u.email_verified) navigate("/verify-email", { replace: true });
+      else if (u.role !== "admin") navigate("/dashboard", { replace: true });
       else setUser(u);
     }, (err) => {
       if (err instanceof ApiError && err.status === 401) navigate("/login", { replace: true });

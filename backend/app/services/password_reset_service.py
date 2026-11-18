@@ -122,6 +122,8 @@ def reset_password(db: Session, reset_token: str, new_password: str) -> User:
         raise InvalidResetTokenError
     user.password_hash = hash_password(new_password)
     user.password_changed_at = now  # signs out every older session
+    if user.email_verified_at is None:
+        user.email_verified_at = now  # the code reached their inbox: that proves the email too
     reset.used_at = now
     db.commit()
     return user

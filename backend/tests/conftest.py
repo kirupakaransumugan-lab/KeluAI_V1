@@ -24,6 +24,18 @@ def storage(tmp_path, monkeypatch):
     return store
 
 
+@pytest.fixture(autouse=True)
+def outbox(monkeypatch):
+    """Tests never send real email (backend/.env may hold real SMTP settings): every message
+    lands here instead, as {"to", "subject", "body"}."""
+    from app.services import email_service
+
+    sent: list[dict] = []
+    monkeypatch.setattr(email_service, "send_email",
+                        lambda to, subject, body: sent.append({"to": to, "subject": subject, "body": body}))
+    return sent
+
+
 @pytest.fixture
 def client():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)

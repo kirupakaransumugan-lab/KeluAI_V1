@@ -12,10 +12,12 @@ from app.repositories import user_repository
 ACCESS_COOKIE = "kelu_access"
 
 
-def get_current_user(
+def get_signed_in_user(
     db: Session = Depends(get_db),
     token: str | None = Cookie(default=None, alias=ACCESS_COOKIE),
 ) -> User:
+    """The session's user, verified email or not. Only for what the verify screen needs
+    (who am I, verify, resend, log out, delete); everything else uses get_current_user."""
     unauthorized = HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "not_authenticated"})
     if not token:
         raise unauthorized
@@ -34,4 +36,12 @@ def get_current_user(
     # A password reset signs out every session that existed before it.
     if user.password_changed_at and issued_at < user.password_changed_at:
         raise unauthorized
+    return user
+
+
+def get_current_user(user: User = Depends(get_signed_in_user)) -> User:
+    """The signed-in user, once they have proved they own their email."""
+    if user.email_verified_at is None:
+        # 403, not 401: they are signed in; the frontend sends them to the verify screen.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "email_unverified"})
     return user

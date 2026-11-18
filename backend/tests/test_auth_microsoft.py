@@ -12,6 +12,7 @@ from app.core.microsoft_auth import (
 )
 from app.core.social_identity import SocialIdentity
 from app.schemas.auth import allowed_exam_years
+from tests.test_auth_login import verify_in_db
 
 URL = "/api/v1/auth/microsoft"
 IDENTITY = SocialIdentity(sub="ms-abc", email="nila@outlook.com", full_name="Nila Kumar")
@@ -68,6 +69,7 @@ def test_first_microsoft_sign_in_asks_for_profile_then_creates_student(client, m
 def test_microsoft_links_existing_email_account(client, microsoft_on):
     client.post("/api/v1/auth/register",
                 json={"full_name": "Nila Kumar", "email": "nila@outlook.com", "password": "s3cure-pass", **PROFILE})
+    verify_in_db("nila@outlook.com")        # they proved the inbox, so their password is theirs
     client.cookies.clear()
     assert client.post(URL, json={"credential": "good-token"}).status_code == 200
     client.cookies.clear()

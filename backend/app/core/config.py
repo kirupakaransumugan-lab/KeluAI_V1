@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     # Where Stripe sends the student back after paying or cancelling (the frontend's address).
     app_url: str = Field("http://localhost:5173", alias="APP_URL")
 
+    # Sign-up email verification (app/services/email_verification_service.py)
+    verify_code_minutes: int = 30
+    verify_code_max_attempts: int = 5
+    verify_resend_seconds: int = 60       # wait between two codes
+    verify_max_per_hour: int = 5          # codes per account per hour (each one is an email we pay for)
+
     reset_code_minutes: int = 15
     reset_code_max_attempts: int = 5
     reset_token_minutes: int = 10

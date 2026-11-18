@@ -28,6 +28,8 @@ export function LoginForm() {
   // Students land on their dashboard, admins on the admin overview.
   useEffect(() => {
     if (!user) return;
+    // Signed up with email + password but never entered the code: finish that first.
+    if (!user.email_verified) return navigate("/verify-email", { replace: true });
     if (user.role !== "admin") queueWelcome();      // the dashboard shows the welcome card once
     navigate(user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
   }, [user, navigate]);

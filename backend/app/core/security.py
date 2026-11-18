@@ -59,6 +59,12 @@ def decode_reset_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm], audience=RESET_AUDIENCE)
 
 
+def hash_verify_code(user_id: int, code: str) -> str:
+    """Like hash_reset_code, with its own prefix: a sign-up code can never pass as a reset code."""
+    key = get_settings().jwt_secret.encode("utf-8")
+    return hmac.new(key, f"verify:{user_id}:{code}".encode("ascii"), hashlib.sha256).hexdigest()
+
+
 def hash_reset_code(user_id: int, code: str) -> str:
     # Keyed hash, not plain SHA-256: there are only a million 6-digit codes, so an
     # unkeyed hash leaked from the DB could be reversed instantly.

@@ -58,6 +58,7 @@ export interface User {
   mobile: string;              // E.164, e.g. +94771234567
   parent_email: string | null;
   has_password: boolean;       // false: Google-only account (can set a first password)
+  email_verified: boolean;     // false: only /verify-email works until they enter the emailed code
 }
 
 export interface ProfileUpdate {
@@ -102,7 +103,11 @@ export const authApi = {
     request<{ reset_token: string }>("POST", "/auth/password/verify", { email, code }),
   resetPassword: (reset_token: string, new_password: string) =>
     request<{ user: User }>("POST", "/auth/password/reset", { reset_token, new_password }),
+  /** Works before the email is verified too (the verify screen uses it). */
   me: () => request<User>("GET", "/auth/me"),
+  verifyEmail: (code: string) => request<{ user: User }>("POST", "/auth/email/verify", { code }),
+  /** 429 resend_too_soon with detail.retry_after (seconds) when asked again too soon. */
+  resendVerification: () => request<{ status: string }>("POST", "/auth/email/resend"),
   /** Never 401: `user` is null for a visitor who isn't signed in. */
   session: () => request<{ user: User | null }>("GET", "/auth/session"),
   logout: () => request<void>("POST", "/auth/logout"),

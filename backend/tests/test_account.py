@@ -7,6 +7,7 @@ from app.models import PracticeAnswer, SavedQuestion, StudentProfile, Subscripti
 from app.models.user import SubscriptionStatus
 from app.schemas.auth import allowed_exam_years
 from app.services.subscription import summary
+from tests.test_auth_login import verify_in_db
 
 PASSWORD = "s3cure-pass"
 
@@ -17,7 +18,8 @@ def _register(client, email="kavin@example.com"):
         "medium": "ta", "al_exam_year": allowed_exam_years()[1], "accept_terms": True,
     })
     assert resp.status_code == 201, resp.text
-    return resp.json()["user"]
+    verify_in_db(email)
+    return resp.json()["user"] | {"email_verified": True}
 
 
 def _db():

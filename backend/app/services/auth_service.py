@@ -35,9 +35,13 @@ def _new_student(
     *, full_name: str, email: str, profile: StudentProfileFields, password_hash: str | None,
     google_sub: str | None = None, microsoft_sub: str | None = None,
 ) -> User:
-    """Build the user, their student profile and a 14-day trial (caller commits)."""
+    """Build the user, their student profile and a 14-day trial (caller commits).
+
+    Google/Microsoft accounts are verified from the start (the provider checked the inbox);
+    an email + password account must enter the code emailed to it first."""
     now = utcnow()
     user = User(
+        email_verified_at=now if (google_sub or microsoft_sub) else None,
         full_name=full_name,
         email=email,
         mobile=profile.mobile,
@@ -101,6 +105,14 @@ def social_sign_in(db: Session, provider: Provider, identity: SocialIdentity,
         # The provider has verified they own this inbox (microsoft_auth refuses unverified
         # emails), so linking to the existing account is safe; from now on any login method works.
         setattr(user, sub_field, identity.sub)
+        if user.email_verified_at is None:
+            # Someone signed up with this email and a password but never proved the inbox: it may
+            # not have been its owner. Drop that unproven password and end its sessions, so they
+            # can't keep a way into the real owner's account.
+            now = utcnow()
+            user.password_hash = None
+            user.password_changed_at = now
+            user.email_verified_at = now
         db.commit()
         return user
 
@@ -149,6 +161,7 @@ def to_user_out(user: User) -> UserOut:
         mobile=user.mobile,
         parent_email=user.profile.parent_email if user.profile else None,
         has_password=user.password_hash is not None,
+        email_verified=user.email_verified_at is not None,
     )
 
 

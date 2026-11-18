@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { queueWelcome } from "../onboarding/WelcomeModal";
 import { useLanguage } from "../../app/providers";
 import { ArrowRight } from "../../components/ui/Button";
@@ -36,6 +37,7 @@ export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<User>();
+  const navigate = useNavigate();
   const google = useGoogleSignIn(setCreated);
   // A new student sees the welcome card when they open their dashboard.
   useEffect(() => { if (created) queueWelcome(); }, [created]);
@@ -76,6 +78,11 @@ export function SignupForm() {
     setSubmitting(true);
     try {
       const { user } = await authApi.register({ ...values, al_exam_year: Number(values.al_exam_year) });
+      // Email + password accounts must confirm the inbox first; we've just emailed the code.
+      if (!user.email_verified) {
+        navigate("/verify-email", { replace: true });
+        return;
+      }
       setCreated(user);
     } catch (err) {
       if (err instanceof ApiError && err.code === "email_taken") {

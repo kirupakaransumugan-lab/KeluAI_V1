@@ -3,6 +3,7 @@ import { HomePage } from "../pages/HomePage";
 import { SignupPage } from "../pages/SignupPage";
 import { LoginPage } from "../pages/LoginPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { VerifyEmailPage } from "../pages/VerifyEmailPage";
 import { DashboardLayout } from "../layouts/DashboardLayout";
 import { ComingSoon, DashboardHome } from "../features/dashboard/DashboardHome";
 import { SettingsPage } from "../features/account/SettingsPage";
@@ -35,6 +36,7 @@ export function AppRouter() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         {/* Signed-in app: the layout sends anyone not logged in to /login. */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardHome />} />

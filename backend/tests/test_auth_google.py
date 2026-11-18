@@ -4,6 +4,7 @@ from app.api.v1.endpoints import auth as auth_endpoints
 from app.core.config import get_settings
 from app.core.google_auth import GoogleIdentity, GoogleTokenError
 from app.schemas.auth import allowed_exam_years
+from tests.test_auth_login import verify_in_db
 
 URL = "/api/v1/auth/google"
 IDENTITY = GoogleIdentity(sub="google-123", email="kavin@example.com", full_name="Kavin Raj")
@@ -63,6 +64,7 @@ def test_google_links_existing_email_account(client, google_on):
         "/api/v1/auth/register",
         json={"full_name": "Kavin Raj", "email": "kavin@example.com", "password": "s3cure-pass", **PROFILE},
     )
+    verify_in_db("kavin@example.com")       # they proved the inbox, so their password is theirs
     client.cookies.clear()
     resp = client.post(URL, json={"credential": "good-token"})
     assert resp.status_code == 200

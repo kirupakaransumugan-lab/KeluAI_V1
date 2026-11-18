@@ -3,6 +3,7 @@ from app.core.database import get_db
 from app.main import app
 from app.models import TutorConversation
 from app.schemas.auth import allowed_exam_years
+from tests.test_auth_login import verify_in_db
 
 URL = "/api/v1/tutor/conversations"
 
@@ -13,6 +14,7 @@ def _register(client, email="kavin@example.com"):
         "medium": "ta", "al_exam_year": allowed_exam_years()[1], "accept_terms": True,
     })
     assert resp.status_code == 201, resp.text
+    verify_in_db(email)
 
 
 def _chat(updated=2000, saved=False, title="Limits", text="hello"):

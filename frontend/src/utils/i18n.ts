@@ -24,6 +24,7 @@ export interface Copy {
   signup: SignupCopy;
   login: LoginCopy;
   forgot: ForgotCopy;
+  verify: VerifyCopy;
   dashboard: DashboardCopy;
 }
 
@@ -399,6 +400,14 @@ export interface TutorCopy {
   truncated: string;
   retry: string;
   errors: { notConfigured: string; failed: string; network: string; badImage: string; imageTooLarge: string };
+}
+
+/** The "check your email" screen after an email + password sign-up. "{email}" and "{s}" are replaced. */
+export interface VerifyCopy {
+  titleLead: string; titleAccent: string; titleTail: string; subtitle: string[];
+  heading: string; intro: string; code: string; codePh: string; verify: string; verifying: string;
+  resend: string; resendIn: string; resent: string; spam: string; wrongEmail: string; logout: string;
+  errors: { code: string; invalidCode: string; tooSoon: string; network: string; generic: string };
 }
 
 export interface ForgotCopy {
@@ -901,6 +910,31 @@ const en: Copy = {
       passwordTooLong: "That password is too long. Please use a shorter one.",
       mismatch: "The passwords don't match.",
       expired: "This reset took too long. Please start again.",
+      network: "We couldn't reach KELU. Check your connection and try again.",
+      generic: "Something went wrong. Please try again.",
+    },
+  },
+  verify: {
+    titleLead: "One last",
+    titleAccent: "step",
+    titleTail: "",
+    subtitle: ["Confirm your email so we know", "it's really you."],
+    heading: "Check your email",
+    intro: "We've sent a 6-digit code to {email}. Enter it below to finish creating your account. It expires in 30 minutes.",
+    code: "Verification code",
+    codePh: "6-digit code",
+    verify: "Verify email",
+    verifying: "Checking…",
+    resend: "Resend code",
+    resendIn: "Resend code in {s}s",
+    resent: "We've sent a new code.",
+    spam: "Can't find it? Check your spam or promotions folder.",
+    wrongEmail: "Wrong email? Log out and sign up again with the right one.",
+    logout: "Log out",
+    errors: {
+      code: "Enter the 6-digit code from the email.",
+      invalidCode: "That code is wrong or has expired. Check the email or send a new code.",
+      tooSoon: "Please wait a little before asking for another code.",
       network: "We couldn't reach KELU. Check your connection and try again.",
       generic: "Something went wrong. Please try again.",
     },
@@ -1658,6 +1692,31 @@ const ta: Copy = {
       passwordTooLong: "கடவுச்சொல் மிக நீளமானது. சிறியதொன்றைப் பயன்படுத்துங்கள்.",
       mismatch: "கடவுச்சொற்கள் பொருந்தவில்லை.",
       expired: "மீட்டமைப்புக்கு அதிக நேரம் ஆகிவிட்டது. மீண்டும் தொடங்குங்கள்.",
+      network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+      generic: "ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயலுங்கள்.",
+    },
+  },
+  verify: {
+    titleLead: "இன்னும் ஒரு",
+    titleAccent: "படி",
+    titleTail: "",
+    subtitle: ["இது நீங்கள்தான் என்பதை உறுதிப்படுத்த,", "உங்கள் மின்னஞ்சலைச் சரிபாருங்கள்."],
+    heading: "உங்கள் மின்னஞ்சலைப் பாருங்கள்",
+    intro: "{email} இற்கு 6 இலக்கக் குறியீடு அனுப்பியுள்ளோம். கணக்கை உருவாக்கி முடிக்க அதைக் கீழே உள்ளிடுங்கள். அது 30 நிமிடங்களில் காலாவதியாகும்.",
+    code: "சரிபார்ப்புக் குறியீடு",
+    codePh: "6 இலக்கக் குறியீடு",
+    verify: "மின்னஞ்சலைச் சரிபார்",
+    verifying: "சரிபார்க்கிறது…",
+    resend: "குறியீட்டை மீண்டும் அனுப்பு",
+    resendIn: "{s} வினாடிகளில் மீண்டும் அனுப்பலாம்",
+    resent: "புதிய குறியீடு அனுப்பப்பட்டது.",
+    spam: "கிடைக்கவில்லையா? Spam அல்லது Promotions கோப்புறையைப் பாருங்கள்.",
+    wrongEmail: "மின்னஞ்சல் தவறா? வெளியேறி, சரியான மின்னஞ்சலுடன் மீண்டும் பதிவு செய்யுங்கள்.",
+    logout: "வெளியேறு",
+    errors: {
+      code: "மின்னஞ்சலில் உள்ள 6 இலக்கக் குறியீட்டை உள்ளிடுங்கள்.",
+      invalidCode: "குறியீடு தவறானது அல்லது காலாவதியானது. மின்னஞ்சலைச் சரிபாருங்கள் அல்லது புதிய குறியீட்டைப் பெறுங்கள்.",
+      tooSoon: "இன்னொரு குறியீட்டைக் கேட்கும் முன் சிறிது நேரம் காத்திருங்கள்.",
       network: "KELU உடன் இணைய முடியவில்லை. இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
       generic: "ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயலுங்கள்.",
     },
