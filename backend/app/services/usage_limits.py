@@ -21,7 +21,7 @@ from app.models.user import Role, User
 from app.services.admin_overview import plan_state
 from app.services.progress import local_day
 
-FREE_LIMITS = {"chat": 20, "quiz": 10}
+FREE_LIMITS = {"chat": 20, "quiz": 2}   # quiz = a 5-question topic quiz; the exam-year 10-question quiz isn't limited here
 
 
 class LimitReached(Exception):

@@ -186,7 +186,7 @@ export function PracticePage() {
       : code === "tutor_not_configured" ? p.errors.notConfigured
       : code === "no_bank_questions" ? p.errors.noFullQuiz
       : code === "full_quiz_locked" ? p.errors.fullLocked
-      : code === "daily_limit" ? fill(p.errors.dailyLimit, { max: quizLimit ?? 10 })
+      : code === "daily_limit" ? fill(p.errors.dailyLimit, { max: quizLimit ?? 2 })
       : code === "network" ? p.errors.network : p.errors.failed;
   };
 
@@ -245,7 +245,7 @@ export function PracticePage() {
       return;
     }
     if (quizzesLeft === 0) {             // the server refuses it too; this just saves the wait
-      setError(fill(p.errors.dailyLimit, { max: quizLimit ?? 10 }));
+      setError(fill(p.errors.dailyLimit, { max: quizLimit ?? 2 }));
       return;
     }
     setError(null);
@@ -457,7 +457,7 @@ export function PracticePage() {
 
   const picker = <SubjectPicker subjects={subjects} fullQuiz={fullQuiz} fullState={states[FULL_KEY] ?? null}
     states={states} statusText={statusText} starting={starting} error={error} onPick={pickTopic}
-    quota={quizzesLeft === null ? null : fill(p.quizzesLeft, { left: quizzesLeft, max: quizLimit ?? 10 })}
+    quota={quizzesLeft === null ? null : fill(p.quizzesLeft, { left: quizzesLeft, max: quizLimit ?? 2 })}
     onNewQuiz={startTopic} onStartFull={startFull} />;
 
   // ---------- The quiz ----------

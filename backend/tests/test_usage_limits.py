@@ -1,4 +1,4 @@
-"""Free students: 20 tutor messages and 10 practice quizzes a Sri Lanka day. Paid: no limit.
+"""Free students: 20 tutor messages and 2 topic quizzes a Sri Lanka day. Paid: no limit.
 Counted only once the AI has answered; a quiz's five questions count once."""
 from datetime import timedelta
 from types import SimpleNamespace as NS
@@ -81,7 +81,7 @@ def test_free_student_gets_twenty_messages(client, student):
     assert resp.status_code == 429
     assert resp.json()["detail"] == {"code": "daily_limit", "kind": "chat", "limit": 20}
     usage = client.get("/api/v1/tutor/usage").json()
-    assert usage["chat"] == {"used": 20, "limit": 20} and usage["quiz"]["limit"] == 10
+    assert usage["chat"] == {"used": 20, "limit": 20} and usage["quiz"]["limit"] == 2
 
 
 def test_a_failed_reply_does_not_count(client, student):
@@ -90,15 +90,15 @@ def test_a_failed_reply_does_not_count(client, student):
     assert client.get("/api/v1/tutor/usage").json()["chat"]["used"] == 0
 
 
-def test_five_questions_of_one_quiz_count_once_and_the_eleventh_quiz_is_refused(client, student):
-    for quiz in range(10):
+def test_five_questions_of_one_quiz_count_once_and_the_third_quiz_is_refused(client, student):
+    for quiz in range(2):
         for slot in range(1, 6):
             assert _question(client, quiz, slot).status_code == 200
-    assert client.get("/api/v1/tutor/usage").json()["quiz"]["used"] == 10
+    assert client.get("/api/v1/tutor/usage").json()["quiz"]["used"] == 2
     resp = _question(client, 99)
-    assert resp.status_code == 429 and resp.json()["detail"]["kind"] == "quiz"
+    assert resp.status_code == 429 and resp.json()["detail"] == {"code": "daily_limit", "kind": "quiz", "limit": 2}
     # A quiz already started today can still finish its questions.
-    assert _question(client, 9, 5).status_code == 200
+    assert _question(client, 1, 5).status_code == 200
 
 
 def test_a_quiz_whose_questions_all_fail_does_not_count(client, student):

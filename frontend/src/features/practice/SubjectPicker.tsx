@@ -18,7 +18,7 @@ export function SubjectPicker({ subjects, fullQuiz, fullState, states, statusTex
   statusText: (state: QuizState) => string;
   starting: boolean;
   error: string | null;
-  quota: string | null;                   // "7 of 10 free quizzes left today"; null for paid students
+  quota: string | null;                   // "1 of 2 free quizzes left today"; null for paid students
   onPick: (key: string) => void;          // open the topic's quiz, or start one
   onNewQuiz: (key: string) => void;       // always a new quiz
   onStartFull: () => void;

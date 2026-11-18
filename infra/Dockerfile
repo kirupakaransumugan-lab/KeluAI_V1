@@ -28,7 +28,10 @@ COPY app ./app
 
 # Run as a normal user, not root. /models holds the downloaded model weights (a Docker volume,
 # so the download happens once, not on every rebuild).
-RUN useradd --create-home --uid 1000 kelu && mkdir -p /models && chown kelu /models
+# a+rX: the code must be readable by that user even if the checkout on the server has owner-only
+# permissions (a strict umask during `git pull` once made the backend crash-loop).
+RUN useradd --create-home --uid 1000 kelu && mkdir -p /models && chown kelu /models \
+    && chmod -R a+rX /app
 USER kelu
 
 EXPOSE 8000
