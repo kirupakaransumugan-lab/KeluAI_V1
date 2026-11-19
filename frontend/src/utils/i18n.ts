@@ -44,6 +44,13 @@ export interface DashboardCopy {
     // Screen-reader labels
     sidebar: string; openMenu: string; search: string; notifications: string; account: string;
   };
+  /** The notification bell (features/dashboard/NotificationBell.tsx). */
+  bell: {
+    title: string; empty: string; failed: string;
+    planEnding: string; planEndsToday: string; planEnded: string; payment: string;
+    feedbackClosed: string; fullQuiz: string; quizLimit: string;
+    plans: { trial: string; monthly: string; annual: string };
+  };
   /** Hover cards on the sidebar links (features/onboarding/NavTips.tsx): a short video, or
    *  these three steps until the video exists. */
   tips: {
@@ -945,6 +952,16 @@ const en: Copy = {
       saved: "Saved Questions", subscription: "Subscription", settings: "Settings", logout: "Log out",
       sidebar: "Dashboard", openMenu: "Open menu", search: "Search", notifications: "Notifications", account: "Account menu",
     },
+    bell: {
+      title: "Notifications", empty: "You're all caught up.", failed: "Couldn't load notifications.",
+      planEnding: "Your {plan} ends in {days} days.", planEndsToday: "Your {plan} ends today.",
+      planEnded: "Your {plan} has ended. Renew to keep unlimited practice.",
+      payment: "Payment received: {plan}, LKR {amount}. Thank you!",
+      feedbackClosed: "We reviewed your report on \"{topic}\". Thank you for helping!",
+      fullQuiz: "The 10-question whole-syllabus quiz is now open for you in Practice.",
+      quizLimit: "You've used today's {limit} free topic quizzes. More tomorrow!",
+      plans: { trial: "free trial", monthly: "monthly plan", annual: "annual plan" },
+    },
     tips: {
       label: "How it works",
       items: {
@@ -1726,6 +1743,16 @@ const ta: Copy = {
       home: "முகப்பு", practice: "பயிற்சி", tutor: "AI ஆசிரியர்", pastPapers: "கடந்தகால வினாத்தாள்கள்", progress: "முன்னேற்றம்",
       saved: "சேமித்த வினாக்கள்", subscription: "சந்தா", settings: "அமைப்புகள்", logout: "வெளியேறு",
       sidebar: "கட்டுப்பாட்டுப் பலகை", openMenu: "பட்டியலைத் திற", search: "தேடு", notifications: "அறிவிப்புகள்", account: "கணக்குப் பட்டியல்",
+    },
+    bell: {
+      title: "அறிவிப்புகள்", empty: "புதிய அறிவிப்புகள் இல்லை.", failed: "அறிவிப்புகளை ஏற்ற முடியவில்லை.",
+      planEnding: "உங்கள் {plan} இன்னும் {days} நாட்களில் முடிவடையும்.", planEndsToday: "உங்கள் {plan} இன்று முடிவடைகிறது.",
+      planEnded: "உங்கள் {plan} முடிவடைந்தது. வரம்பற்ற பயிற்சிக்குப் புதுப்பியுங்கள்.",
+      payment: "கட்டணம் பெறப்பட்டது: {plan}, LKR {amount}. நன்றி!",
+      feedbackClosed: "\"{topic}\" பற்றிய உங்கள் அறிக்கையைப் பார்வையிட்டோம். உதவியதற்கு நன்றி!",
+      fullQuiz: "10 வினாக்கள் கொண்ட முழுப் பாடத்திட்ட வினாடி வினா இப்போது பயிற்சியில் உங்களுக்குத் திறக்கப்பட்டுள்ளது.",
+      quizLimit: "இன்றைய {limit} இலவச தலைப்பு வினாடி வினாக்களையும் செய்துவிட்டீர்கள். நாளை மீண்டும் வாருங்கள்!",
+      plans: { trial: "இலவச சோதனைக் காலம்", monthly: "மாதாந்தத் திட்டம்", annual: "வருடாந்தத் திட்டம்" },
     },
     tips: {
       label: "இது எப்படி வேலை செய்கிறது",

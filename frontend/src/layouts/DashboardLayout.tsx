@@ -7,6 +7,7 @@ import { useLanguage } from "../app/providers";
 import { setSession } from "../app/session";
 import { ErrorBoundary } from "../components/feedback/ErrorBoundary";
 import { icons } from "../features/dashboard/icons";
+import { NotificationBell } from "../features/dashboard/NotificationBell";
 import { ApiError, authApi, type User } from "../services/api";
 import "../styles/dashboard.css";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -145,9 +146,7 @@ export function DashboardLayout() {
               <button type="button" className={lang === "en" ? "active" : ""} aria-pressed={lang === "en"}
                 onClick={() => setLang("en")}>English</button>
             </div>
-            <button className="db-icon-btn db-bell" type="button" aria-label={d.nav.notifications}>
-              {icons.bell}<span className="db-bell-dot" aria-hidden="true" />
-            </button>
+            <NotificationBell />
             <div className="db-account" ref={accountRef}>
               <button type="button" className="db-account-btn" aria-label={d.nav.account}
                 aria-haspopup="menu" aria-expanded={accountOpen} onClick={() => setAccountOpen((o) => !o)}>

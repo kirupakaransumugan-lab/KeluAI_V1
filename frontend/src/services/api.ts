@@ -655,3 +655,19 @@ export const tutorApi = {
   quizQuestion: (lang: Medium, slot: number, topic: string, quizId: number) =>
     request<{ question: QuizQuestion; model: string }>("POST", "/tutor/quiz/question", { lang, slot, topic, quiz_id: quizId }),
 };
+
+/** GET /notifications: alerts worked out from the student's own data, newest first.
+ *  `at` is UTC (ISO); the page words each `kind` in the student's language. */
+export type NotificationKind =
+  | "plan_ending" | "plan_ended" | "payment" | "feedback_closed" | "full_quiz_unlocked" | "quiz_limit";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  at: string;
+  data: { plan?: string; days?: number; amount_lkr?: number; topic?: string; limit?: number };
+}
+
+export const notificationsApi = {
+  list: () => request<{ items: AppNotification[] }>("GET", "/notifications"),
+};
