@@ -372,3 +372,17 @@ button.db-btn-primary:disabled { opacity: 0.75; cursor: progress; transform: non
 @container db-main (min-width: 1460px) {
   .db-hero { margin-right: 0; border-radius: 26px; }
 }
+
+/* ---------- Math background ----------
+   Faint A/L maths symbols behind the whole signed-in app. Drawn as a mask so the colour
+   comes from --plum-ink and follows light/dark theme. Fixed, so it doesn't scroll. */
+.db-shell { position: relative; isolation: isolate; }
+.db-shell::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-color: var(--plum-ink);
+  opacity: 0.06;
+  -webkit-mask: var(--db-math) 0 0 / 560px 560px repeat;
+  mask: var(--db-math) 0 0 / 560px 560px repeat;
+  --db-math: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' font-family='Georgia,serif' font-style='italic' fill='%23000'%3E%3Ctext x='30' y='70' font-size='46'%3E%E2%88%AB%3C/text%3E%3Ctext x='70' y='62' font-size='20'%3Ef(x) dx%3C/text%3E%3Ctext x='300' y='50' font-size='34'%3E%CF%80%3C/text%3E%3Ctext x='400' y='110' font-size='22'%3Ea%C2%B2 %2B b%C2%B2 %3D c%C2%B2%3C/text%3E%3Ctext x='60' y='190' font-size='40'%3E%CE%A3%3C/text%3E%3Ctext x='95' y='185' font-size='18'%3Er%3D1%3C/text%3E%3Ctext x='230' y='170' font-size='24'%3Edy%2Fdx%3C/text%3E%3Ctext x='440' y='220' font-size='38'%3E%E2%88%9A%3C/text%3E%3Ctext x='470' y='218' font-size='22'%3E2%3C/text%3E%3Ctext x='20' y='300' font-size='22'%3Esin%C2%B2%CE%B8 %2B cos%C2%B2%CE%B8 %3D 1%3C/text%3E%3Ctext x='330' y='300' font-size='42'%3E%E2%88%9E%3C/text%3E%3Ctext x='150' y='380' font-size='36'%3E%CE%B8%3C/text%3E%3Ctext x='260' y='400' font-size='22'%3EF %3D ma%3C/text%3E%3Ctext x='420' y='380' font-size='34'%3E%CE%94%3C/text%3E%3Ctext x='30' y='470' font-size='22'%3Elim%3C/text%3E%3Ctext x='28' y='490' font-size='13'%3Ex%E2%86%920%3C/text%3E%3Ctext x='200' y='500' font-size='24'%3Ev %3D u %2B at%3C/text%3E%3Ctext x='400' y='480' font-size='40'%3E%C2%B1%3C/text%3E%3Ctext x='470' y='530' font-size='28'%3E%CE%BB%3C/text%3E%3C/svg%3E");
+}
+@media (prefers-reduced-transparency: reduce) { .db-shell::before { display: none; } }
