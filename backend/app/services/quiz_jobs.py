@@ -30,7 +30,7 @@ from app.services.topics import TOPICS, Topic
 
 log = logging.getLogger(__name__)
 
-DAILY_SETS = 1
+DAILY_SETS = 3                  # sets of 10 a day = 30 draft questions; only sets that wrote drafts count
 WORKERS = 3                     # free models queue extra requests, so more isn't faster
 STALE_AFTER = timedelta(minutes=30)
 STOP_AFTER_FAILURES = 3         # in a row: a used-up quota or a broken model chain. Each failure

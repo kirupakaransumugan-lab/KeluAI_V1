@@ -11,7 +11,7 @@ const POLL_MS = 5000;
 
 const BLOCKED: Record<string, string> = {
   job_running: "A set is being written.",
-  daily_set_done: "Today's set is done. You can write the next one tomorrow.",
+  daily_set_done: "Today's 3 sets are done. You can write more tomorrow.",
 };
 const JOB_ENDED: Record<string, string> = {
   stopped: "This set stopped early because questions kept failing. The AI quota may be used up.",

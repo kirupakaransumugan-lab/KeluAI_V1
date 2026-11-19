@@ -127,10 +127,14 @@ def _job(db, *, status="finished", added=10, ago=timedelta(0), lang="en"):
     db.commit()
 
 
-def test_one_set_a_day(client, runner):
+def test_three_sets_a_day(client, runner):
     _admin(client)
-    _job(_db())
-    resp = client.post(f"{URL}/generate", json={})
+    db = _db()
+    _job(db)
+    _job(db)
+    assert quiz_jobs.blocked_reason(db, "en") is None          # two done: the third is allowed
+    _job(db)
+    resp = client.post(f"{URL}/generate", json={})             # three done: the fourth is refused
     assert resp.status_code == 409 and resp.json()["detail"]["code"] == "daily_set_done"
 
 
