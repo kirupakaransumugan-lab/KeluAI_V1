@@ -83,3 +83,45 @@ def test_newest_first(client):
     db.commit()
     at = [i["at"] for i in client.get(URL).json()["items"]]
     assert at == sorted(at, reverse=True)
+
+
+# ---------- Plan ending / ended (unit: _plan_alert) ----------
+
+from datetime import datetime  # noqa: E402
+from types import SimpleNamespace as NS  # noqa: E402
+
+from app.services.notifications import _plan_alert  # noqa: E402
+
+NOW = datetime(2026, 11, 20, 6, 0)          # UTC; 11:30 in Sri Lanka, 20 Nov
+
+
+def _plan(ends: datetime, plan="trial", sid=1):
+    return NS(id=sid, plan=plan, starts_at=datetime(2026, 11, 1), ends_at=ends)
+
+
+def _alert(*subs):
+    return _plan_alert(NS(subscriptions=list(subs)), NOW)
+
+
+def test_no_warning_more_than_three_days_out():
+    assert _alert(_plan(datetime(2026, 11, 24, 6, 0))) is None          # 24 Nov: 4 days
+
+
+def test_warning_three_days_before_with_the_exact_end():
+    alert = _alert(_plan(datetime(2026, 11, 23, 9, 0)))                  # 23 Nov, 14:30 LK
+    assert alert["kind"] == "plan_ending"
+    assert alert["data"] == {"plan": "trial", "days": 3, "ends_at": "2026-11-23T09:00:00Z"}
+
+
+def test_ending_later_today_is_zero_days():
+    assert _alert(_plan(datetime(2026, 11, 20, 12, 0)))["data"]["days"] == 0
+
+
+def test_ended_trial_shows_its_date_then_fades():
+    alert = _alert(_plan(datetime(2026, 11, 19, 6, 0)))
+    assert alert["kind"] == "plan_ended" and alert["data"]["ends_at"] == "2026-11-19T06:00:00Z"
+    assert _alert(_plan(datetime(2026, 10, 30))) is None                 # over 14 days ago
+
+
+def test_a_paid_plan_after_the_trial_hides_the_trial_warning():
+    assert _alert(_plan(datetime(2026, 11, 21)), _plan(datetime(2026, 12, 20), "monthly", 2)) is None

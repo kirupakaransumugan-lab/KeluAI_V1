@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
-from app.models.user import User
+from app.core.clock import utcnow
+from app.models.user import Role, User
 from app.repositories import user_repository
+from app.services.admin_overview import plan_state
 
 ACCESS_COOKIE = "kelu_access"
 
@@ -44,4 +46,15 @@ def get_current_user(user: User = Depends(get_signed_in_user)) -> User:
     if user.email_verified_at is None:
         # 403, not 401: they are signed in; the frontend sends them to the verify screen.
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "email_unverified"})
+    return user
+
+
+ENDED_PLANS = ("expired", "cancelled")
+
+
+def require_live_plan(user: User = Depends(get_current_user)) -> User:
+    """A student whose trial or paid plan has ended can't use the study features until they
+    subscribe. 402 plan_ended: the dashboard shows the subscribe card. Admins always pass."""
+    if user.role == Role.student and plan_state(user, utcnow()) in ENDED_PLANS:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, detail={"code": "plan_ended"})
     return user

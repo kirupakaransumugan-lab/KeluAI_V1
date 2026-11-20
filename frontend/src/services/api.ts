@@ -55,6 +55,7 @@ export interface User {
   medium: Medium | null; // null for admins
   al_exam_year: number | null;
   trial_ends_at: string | null;
+  plan_state: "trial" | "paid" | "expired" | "cancelled";   // expired/cancelled: study features answer 402 plan_ended
   mobile: string;              // E.164, e.g. +94771234567
   parent_email: string | null;
   has_password: boolean;       // false: Google-only account (can set a first password)
@@ -665,7 +666,7 @@ export interface AppNotification {
   id: string;
   kind: NotificationKind;
   at: string;
-  data: { plan?: string; days?: number; amount_lkr?: number; topic?: string; limit?: number };
+  data: { plan?: string; days?: number; ends_at?: string; amount_lkr?: number; topic?: string; limit?: number };
 }
 
 export const notificationsApi = {

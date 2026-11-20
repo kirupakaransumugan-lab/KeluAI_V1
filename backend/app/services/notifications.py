@@ -21,12 +21,32 @@ from app.services.progress import COLOMBO, local_day
 from app.services.quiz_plan import EXAM_DAY, EXAM_MONTH, EXAM_WINDOW_MONTHS, can_take_full_quiz
 
 RECENT = timedelta(days=14)        # how far back payments and closed reports are shown
+WARN_DAYS = 3                      # "your plan ends soon" shows from this many days before the end
 
 
 def _plan_alert(user: User, now: datetime) -> dict | None:
-    """A warning that the student's plan (trial or paid) ends soon, or has just ended."""
-    # TODO(human)
-    return None
+    """A warning that the student's plan (trial or paid) ends soon, or has just ended.
+
+    Ending: from WARN_DAYS Sri Lanka days before the end; `days` counts calendar days, so 0
+    means "ends today". Ended: for RECENT after the last plan ran out, unless another started.
+    `ends_at` is the exact end, so the page can show the date."""
+    started = [s for s in user.subscriptions if s.starts_at <= now]
+    if not started:
+        return None
+    live = [s for s in started if now < s.ends_at]
+    if live:
+        sub = max(live, key=lambda s: s.ends_at)       # a paid plan after the trial wins
+        days = (local_day(sub.ends_at) - local_day(now)).days
+        if days > WARN_DAYS:
+            return None
+        opened = datetime.combine(local_day(sub.ends_at) - timedelta(days=WARN_DAYS), datetime.min.time()) - COLOMBO
+        return {"id": f"plan_ending:{sub.id}", "kind": "plan_ending", "at": max(opened, sub.starts_at),
+                "data": {"plan": sub.plan, "days": days, "ends_at": sub.ends_at.isoformat() + "Z"}}
+    sub = max(started, key=lambda s: s.ends_at)
+    if now - sub.ends_at > RECENT:
+        return None
+    return {"id": f"plan_ended:{sub.id}", "kind": "plan_ended", "at": sub.ends_at,
+            "data": {"plan": sub.plan, "ends_at": sub.ends_at.isoformat() + "Z"}}
 
 
 def _payment_alerts(db: Session, user: User, now: datetime) -> list[dict]:

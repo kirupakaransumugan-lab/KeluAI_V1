@@ -17,6 +17,7 @@ from app.models.saved_question import SavedQuestion
 from app.models.tutor_conversation import TutorConversation
 from app.models.user import Role, StudentProfile, Subscription, SubscriptionStatus, User
 from app.repositories import user_repository
+from app.services.admin_overview import plan_state
 from app.schemas.auth import RegisterRequest, StudentProfileFields, UpdateProfileRequest, UserOut
 
 
@@ -158,6 +159,7 @@ def to_user_out(user: User) -> UserOut:
         medium=user.profile.medium if user.profile else None,
         al_exam_year=user.profile.al_exam_year if user.profile else None,
         trial_ends_at=trial.ends_at if trial else None,
+        plan_state="paid" if user.role == Role.admin else plan_state(user, utcnow()),
         mobile=user.mobile,
         parent_email=user.profile.parent_email if user.profile else None,
         has_password=user.password_hash is not None,

@@ -94,6 +94,7 @@ class UserOut(BaseModel):
     medium: Medium | None  # None for admins, who have no student profile
     al_exam_year: int | None
     trial_ends_at: datetime | None
+    plan_state: str                # trial | paid | expired | cancelled (admins: paid)
     # For the settings page
     mobile: str
     parent_email: str | None

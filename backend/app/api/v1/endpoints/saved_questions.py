@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.core.clock import utcnow
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.models.saved_question import SavedQuestion
 from app.models.user import User
 
-router = APIRouter(prefix="/saved-questions", tags=["saved-questions"])
+router = APIRouter(prefix="/saved-questions", tags=["saved-questions"], dependencies=[Depends(require_live_plan)])
 
 MAX_SAVED = 500          # per student: a list, not an archive
 TEXT_MAX = 8000

@@ -71,13 +71,18 @@ export function NotificationBell() {
     setOpen((o) => !o);
   };
 
+  // The exact moment the plan ends, in Sri Lanka time: "23 Nov 2026, 2:30 pm".
+  const endDate = (iso?: string) => iso ? new Date(iso).toLocaleString(lang === "ta" ? "ta-LK" : "en-GB", {
+    day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Colombo",
+  }) : "";
   const plan = (key?: string) => b.plans[key as keyof typeof b.plans] ?? key ?? "";
   const text = (n: AppNotification): string => {
     switch (n.kind) {
-      case "plan_ending":
-        return n.data.days ? fill(b.planEnding, { plan: plan(n.data.plan), days: n.data.days })
-          : fill(b.planEndsToday, { plan: plan(n.data.plan) });
-      case "plan_ended": return fill(b.planEnded, { plan: plan(n.data.plan) });
+      case "plan_ending": {
+        const v = { plan: plan(n.data.plan), days: n.data.days ?? 0, date: endDate(n.data.ends_at) };
+        return v.days ? fill(b.planEnding, v) : fill(b.planEndsToday, v);
+      }
+      case "plan_ended": return fill(b.planEnded, { plan: plan(n.data.plan), date: endDate(n.data.ends_at) });
       case "payment":
         return fill(b.payment, { plan: plan(n.data.plan), amount: (n.data.amount_lkr ?? 0).toLocaleString() });
       case "feedback_closed": return fill(b.feedbackClosed, { topic: n.data.topic ?? "" });

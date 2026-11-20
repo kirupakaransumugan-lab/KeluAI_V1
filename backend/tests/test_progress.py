@@ -5,7 +5,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.main import app
 from app.models import PracticeAnswer
 from app.models.user import Medium, Role, User
@@ -25,6 +25,7 @@ def db(client):
                      terms_accepted_at=NOW, created_at=NOW - timedelta(days=60)))
     session.commit()
     app.dependency_overrides[get_current_user] = lambda: session.get(User, 7)
+    app.dependency_overrides[require_live_plan] = app.dependency_overrides[get_current_user]   # plan check: test_plan_gate.py
     yield session
     gen.close()
 

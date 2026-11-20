@@ -95,6 +95,7 @@ export interface DashboardCopy {
   backHome: string;
   loading: string;
   crashTitle: string;
+  planEnded: { title: string; text: string; subscribe: string; logout: string };
   crashText: string;
   reload: string;
   tutor: TutorCopy;
@@ -954,8 +955,8 @@ const en: Copy = {
     },
     bell: {
       title: "Notifications", empty: "You're all caught up.", failed: "Couldn't load notifications.",
-      planEnding: "Your {plan} ends in {days} days.", planEndsToday: "Your {plan} ends today.",
-      planEnded: "Your {plan} has ended. Renew to keep unlimited practice.",
+      planEnding: "Your {plan} ends in {days} days, on {date}.", planEndsToday: "Your {plan} ends today, {date}.",
+      planEnded: "Your {plan} ended on {date}. Subscribe to keep studying.",
       payment: "Payment received: {plan}, LKR {amount}. Thank you!",
       feedbackClosed: "We reviewed your report on \"{topic}\". Thank you for helping!",
       fullQuiz: "The 10-question whole-syllabus quiz is now open for you in Practice.",
@@ -1024,6 +1025,12 @@ const en: Copy = {
     comingSoonText: "This part of KELU is being built. Check back soon!",
     backHome: "Back to dashboard",
     loading: "Loading your dashboard...",
+    planEnded: {
+      title: "Your free trial has ended",
+      text: "Subscribe to keep using the AI tutor, practice quizzes and past papers. Your progress is saved and waiting for you.",
+      subscribe: "Subscribe now",
+      logout: "Log out",
+    },
     crashTitle: "Something went wrong",
     crashText: "This page hit an error. Reloading usually fixes it.",
     reload: "Reload",
@@ -1746,8 +1753,8 @@ const ta: Copy = {
     },
     bell: {
       title: "அறிவிப்புகள்", empty: "புதிய அறிவிப்புகள் இல்லை.", failed: "அறிவிப்புகளை ஏற்ற முடியவில்லை.",
-      planEnding: "உங்கள் {plan} இன்னும் {days} நாட்களில் முடிவடையும்.", planEndsToday: "உங்கள் {plan} இன்று முடிவடைகிறது.",
-      planEnded: "உங்கள் {plan} முடிவடைந்தது. வரம்பற்ற பயிற்சிக்குப் புதுப்பியுங்கள்.",
+      planEnding: "உங்கள் {plan} இன்னும் {days} நாட்களில், {date} அன்று முடிவடையும்.", planEndsToday: "உங்கள் {plan} இன்று, {date} முடிவடைகிறது.",
+      planEnded: "உங்கள் {plan} {date} அன்று முடிவடைந்தது. தொடர்ந்து படிக்கச் சந்தா செலுத்துங்கள்.",
       payment: "கட்டணம் பெறப்பட்டது: {plan}, LKR {amount}. நன்றி!",
       feedbackClosed: "\"{topic}\" பற்றிய உங்கள் அறிக்கையைப் பார்வையிட்டோம். உதவியதற்கு நன்றி!",
       fullQuiz: "10 வினாக்கள் கொண்ட முழுப் பாடத்திட்ட வினாடி வினா இப்போது பயிற்சியில் உங்களுக்குத் திறக்கப்பட்டுள்ளது.",
@@ -1816,6 +1823,12 @@ const ta: Copy = {
     comingSoonText: "KELU இன் இந்தப் பகுதி உருவாக்கப்பட்டு வருகிறது. விரைவில் பாருங்கள்!",
     backHome: "கட்டுப்பாட்டுப் பலகைக்குத் திரும்பு",
     loading: "உங்கள் பலகை ஏற்றப்படுகிறது...",
+    planEnded: {
+      title: "உங்கள் இலவச சோதனைக் காலம் முடிந்துவிட்டது",
+      text: "AI ஆசிரியர், பயிற்சி வினாடிவினாக்கள் மற்றும் கடந்தகால வினாத்தாள்களைத் தொடர்ந்து பயன்படுத்த சந்தா செலுத்துங்கள். உங்கள் முன்னேற்றம் சேமிக்கப்பட்டுள்ளது.",
+      subscribe: "இப்போதே சந்தா செலுத்து",
+      logout: "வெளியேறு",
+    },
     crashTitle: "ஏதோ தவறு நடந்துவிட்டது",
     crashText: "இந்தப் பக்கத்தில் பிழை ஏற்பட்டது. மீள ஏற்றினால் பொதுவாகச் சரியாகும்.",
     reload: "மீள ஏற்று",

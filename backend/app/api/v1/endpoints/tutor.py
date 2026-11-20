@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.models.user import User
 from app.rag.agent.tutor_agent import LLMNotConfigured, TutorAgent, build_llm
 from app.rag.config import get_rag_settings
@@ -33,7 +33,7 @@ from app.services import quiz_bank, quiz_plan
 from app.services.topics import by_key
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/tutor", tags=["tutor"])
+router = APIRouter(prefix="/tutor", tags=["tutor"], dependencies=[Depends(require_live_plan)])
 HISTORY_TURNS = 20
 
 

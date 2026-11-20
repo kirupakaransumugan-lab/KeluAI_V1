@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.models.user import User
 from app.rag.config import get_rag_settings
 from app.rag.types import AccessScope
@@ -17,7 +17,7 @@ from app.rag.vector_store import VectorStore
 from app.services import past_papers
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/papers", tags=["papers"])
+router = APIRouter(prefix="/papers", tags=["papers"], dependencies=[Depends(require_live_plan)])
 
 
 @lru_cache

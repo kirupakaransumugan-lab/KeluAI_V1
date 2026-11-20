@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from app.api.v1.endpoints import tutor
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.main import app
 from app.models.user import Role
 from app.rag.agent.tutor_agent import AgentResult
@@ -23,6 +23,7 @@ class RecordingAgent:
 def agent(client):
     rec = RecordingAgent()
     app.dependency_overrides[get_current_user] = lambda: NS(id=77, role=Role.student, subscriptions=[])
+    app.dependency_overrides[require_live_plan] = app.dependency_overrides[get_current_user]   # plan check: test_plan_gate.py
     app.dependency_overrides[tutor.get_agent] = lambda: rec
     yield rec
 

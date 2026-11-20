@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.models.user import User
 from app.rag.quiz import QUIZ_SIZE
 from app.services import progress
@@ -46,7 +46,7 @@ class AttemptRequest(BaseModel):
 
 
 @router.post("/attempts")
-def save_attempt(req: AttemptRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def save_attempt(req: AttemptRequest, user: User = Depends(require_live_plan), db: Session = Depends(get_db)) -> dict:
     """Safe to retry: a set already saved answers {"recorded": false} and changes nothing."""
     answers = [progress.NewAnswer(a.slot, a.topic, a.steps_total, a.steps_right) for a in req.answers]
     try:

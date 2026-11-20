@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useMatch, useNavigate } from "react-router-dom";
 import { WelcomeModal, takeWelcome } from "../features/onboarding/WelcomeModal";
+import { PlanEndedModal } from "../features/account/PlanEndedModal";
 import { EyeBreak } from "../features/wellbeing/EyeBreak";
 import { useNavTips, type TipKey } from "../features/onboarding/NavTips";
 import { useLanguage } from "../app/providers";
@@ -41,6 +42,7 @@ export function DashboardLayout() {
   const autoHide = !!useMatch("/dashboard/tutor/*");
   // The 20-minute eye break counts study time on Practice and the tutor only.
   const onPractice = !!useMatch("/dashboard/practice/*");
+  const onSubscription = !!useMatch("/dashboard/subscription/*");
   const [user, setUser] = useState<User>();
   const [welcome, setWelcome] = useState(false);         // the after-login welcome card
   const [menuOpen, setMenuOpen] = useState(false);       // mobile sidebar
@@ -93,6 +95,9 @@ export function DashboardLayout() {
   if (!user) {
     return <div className="db-loading" role="status">{d.loading}</div>;
   }
+
+  // Trial or paid plan over: everything but the subscription page sits behind the subscribe card.
+  const planEnded = user.plan_state === "expired" || user.plan_state === "cancelled";
 
   const link = (to: string, key: TipKey, label: string, icon: ReactNode) => {
     const tip = tips.bind(key, label, icon);
@@ -174,7 +179,8 @@ export function DashboardLayout() {
           </main>
         )}>
           <Outlet context={{ user, setUser } satisfies DashboardContext} />
-          {welcome && <WelcomeModal user={user} onClose={() => setWelcome(false)} />}
+          {planEnded ? (!onSubscription && <PlanEndedModal onLogout={logout} />)
+            : welcome && <WelcomeModal user={user} onClose={() => setWelcome(false)} />}
           <EyeBreak enabled={autoHide || onPractice} />
         </ErrorBoundary>
       </div>

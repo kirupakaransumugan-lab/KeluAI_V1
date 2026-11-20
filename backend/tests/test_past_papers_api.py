@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from app.api.v1.endpoints import papers
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.main import app
 from app.models.user import Role
 from app.rag.types import Chunk, UploadRecord
@@ -22,6 +22,7 @@ def _index(store, upload_id, upload_type, chunks, *, year=2022, visibility="glob
 
 def _login():
     app.dependency_overrides[get_current_user] = lambda: NS(id=77, role=Role.student)
+    app.dependency_overrides[require_live_plan] = app.dependency_overrides[get_current_user]   # plan check: test_plan_gate.py
 
 
 @pytest.fixture

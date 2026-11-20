@@ -12,11 +12,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_live_plan
 from app.models.tutor_conversation import TutorConversation
 from app.models.user import User
 
-router = APIRouter(prefix="/tutor/conversations", tags=["tutor"])
+router = APIRouter(prefix="/tutor/conversations", tags=["tutor"], dependencies=[Depends(require_live_plan)])
 
 MAX_CONVERSATIONS = 300          # per student; the oldest unsaved chats make way
 MAX_MESSAGES = 400               # per chat
