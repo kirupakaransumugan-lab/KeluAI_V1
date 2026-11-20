@@ -63,6 +63,8 @@ export interface DashboardCopy {
   examYear: string;
   trialDays: string;
   trialLabel: string;
+  /** Chip under a paid plan, e.g. "left on Monthly". */
+  planLabel: string;
   cheer: string;
   goalEyebrow: string;
   goalTitle: string;
@@ -987,6 +989,7 @@ const en: Copy = {
     examYear: "A/L {n}",
     trialDays: "{n} days",
     trialLabel: "in free trial",
+    planLabel: "left on {plan}",
     cheer: "Let's start learning today! You can do it!",
     goalEyebrow: "Today's goal",
     goalTitle: "Daily quiz · 10 questions",
@@ -1785,6 +1788,7 @@ const ta: Copy = {
     examYear: "உ/த {n}",
     trialDays: "{n} நாட்கள்",
     trialLabel: "இலவச சோதனைக் காலம்",
+    planLabel: "{plan} திட்டத்தில் மீதம்",
     cheer: "இன்றே கற்கத் தொடங்குவோம்! உங்களால் முடியும்!",
     goalEyebrow: "இன்றைய இலக்கு",
     goalTitle: "தினசரி வினாடி வினா · 10 வினாக்கள்",

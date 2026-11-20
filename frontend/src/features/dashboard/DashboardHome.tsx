@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import { useLanguage } from "../../app/providers";
 import type { DashboardContext } from "../../layouts/DashboardLayout";
-import { ApiError, progressApi, quizzesApi, type DashboardSummary, type ProgressTopic } from "../../services/api";
-import { daysLeft, fill } from "../../utils/dates";
+import {
+  ApiError, progressApi, quizzesApi, subscriptionApi,
+  type DashboardSummary, type ProgressTopic, type SubscriptionSummary,
+} from "../../services/api";
+import { fill } from "../../utils/dates";
 import { loadConversations } from "../ai-tutor/conversations";
 import { topicGlyph } from "../practice/topicIcon";
 import { FullQuizLock } from "./FullQuizLock";
@@ -70,8 +73,19 @@ export function DashboardHome() {
   const navigate = useNavigate();
   const [question, setQuestion] = useState("");
   const firstName = user.full_name.split(" ")[0];
-  const trialDays = daysLeft(user.trial_ends_at);
   const h = d.home;
+
+  // The plan chip follows the real subscription (same source as the Subscription page), not
+  // user.trial_ends_at, which stays set after a student upgrades. Hidden until it loads, so a
+  // paying student never sees "in free trial" flash first.
+  const [sub, setSub] = useState<SubscriptionSummary>();
+  useEffect(() => { subscriptionApi.get().then(setSub, () => undefined); }, []);
+  const cur = sub?.current;
+  const live = cur && (cur.status === "trialing" || cur.status === "active") ? cur : undefined;
+  const planName = (key: string) => {
+    const p = sub?.plans.find((x) => x.key === key);
+    return p ? (lang === "ta" ? p.name_ta : p.name_en) : key;
+  };
 
   const [summary, setSummary] = useState<DashboardSummary>();
   const [failed, setFailed] = useState(false);
@@ -128,11 +142,14 @@ export function DashboardHome() {
                 </p>
               )}
             </div>
-            {trialDays !== null && (
+            {live && (
               <div className="db-chips">
                 <div className="db-chip">
                   <span className="db-chip-icon db-plum">{icons.calendar}</span>
-                  <span><strong>{fill(d.trialDays, { n: trialDays })}</strong>{d.trialLabel}</span>
+                  <span>
+                    <strong>{fill(d.trialDays, { n: live.days_left })}</strong>
+                    {live.plan === "trial" ? d.trialLabel : fill(d.planLabel, { plan: planName(live.plan) })}
+                  </span>
                 </div>
               </div>
             )}
